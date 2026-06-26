@@ -34,8 +34,8 @@ python3 localeflow/scripts/process_figma_strings.py \
   --report-md /tmp/localization_report.md \
   --report-json /tmp/localization_report.json \
   --context-map /tmp/context_map.json \
-  --figma-file "JBL One App" \
-  --page "Device Setup" \
+  --figma-file "Example App" \
+  --page "Account" \
   --scope "Selected frames"
 ```
 

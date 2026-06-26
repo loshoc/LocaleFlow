@@ -46,49 +46,49 @@
       "translation": "Échec de la connexion"
     },
     {
-      "source": "Connect your speaker",
+      "source": "Set up your account",
       "target_language": "zh-Hans",
-      "translation": "连接你的音箱"
+      "translation": "设置你的账户"
     },
     {
-      "source": "Connect your device",
+      "source": "Set up your profile",
       "target_language": "ja",
-      "translation": "デバイスを接続"
+      "translation": "プロフィールを設定"
     },
     {
-      "source": "Connect your speaker",
+      "source": "Set up your account",
       "target_language": "ja",
-      "translation": "スピーカーを接続"
+      "translation": "アカウントを設定"
     },
     {
-      "source": "Connect your speaker",
+      "source": "Set up your account",
       "target_language": "fr",
-      "translation": "Connectez votre enceinte"
+      "translation": "Configurez votre compte"
     },
     {
-      "source": "Ambient Sound",
+      "source": "Display name",
       "target_language": "ja",
-      "translation": "アンビエントサウンド"
+      "translation": "表示名"
     },
     {
-      "source": "Ambient Sound",
+      "source": "Display name",
       "target_language": "fr",
-      "translation": "Son ambiant"
+      "translation": "Nom d’affichage"
     },
     {
-      "source": "{name}, your JBL PartyBox is connected via Bluetooth",
+      "source": "{name}, your PIN was updated using the API",
       "target_language": "zh-Hans",
-      "translation": "{name}，你的 JBL PartyBox 已通过 Bluetooth 连接"
+      "translation": "{name}，你的 PIN 已使用 API 更新"
     },
     {
-      "source": "{name}, your JBL PartyBox is connected via Bluetooth",
+      "source": "{name}, your PIN was updated using the API",
       "target_language": "ja",
-      "translation": "{name}、JBL PartyBox は Bluetooth で接続されています"
+      "translation": "{name}、PIN は API を使用して更新されました"
     },
     {
-      "source": "{name}, your JBL PartyBox is connected via Bluetooth",
+      "source": "{name}, your PIN was updated using the API",
       "target_language": "fr",
-      "translation": "{name}, votre JBL PartyBox est connectée via Bluetooth"
+      "translation": "{name}, votre PIN a été mis à jour avec l’API"
     }
   ]
 }

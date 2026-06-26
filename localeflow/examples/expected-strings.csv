@@ -1,8 +1,8 @@
 key,source,zh-Hans,ja,fr
 common.button.cancel,Cancel,取消,キャンセル,Annuler
 home_screen.title.welcome_back_kiwi,"Welcome back, Kiwi",欢迎回来，Kiwi,おかえりなさい、Kiwi,"Bon retour, Kiwi"
-device_setup.toast.connection_failed,Connection failed,连接失败,接続に失敗しました,Échec de la connexion
-device_setup.title.connect_your_device,Connect your device,连接你的设备,デバイスを接続,Connectez votre appareil
-device_setup.title.connect_your_speaker,Connect your speaker,连接你的音箱,スピーカーを接続,Connectez votre enceinte
-audio_settings.label.ambient_sound,Ambient Sound,环境音,アンビエントサウンド,Son ambiant
-device_setup.toast.value_your_jbl_partybox_is_connected_via_bluetooth,"{name}, your JBL PartyBox is connected via Bluetooth",{name}，你的 JBL PartyBox 已通过 Bluetooth 连接,{name}、JBL PartyBox は Bluetooth で接続されています,"{name}, votre JBL PartyBox est connectée via Bluetooth"
+account_settings.toast.connection_failed,Connection failed,连接失败,接続に失敗しました,Échec de la connexion
+account_settings.title.set_up_your_profile,Set up your profile,设置你的个人资料,プロフィールを設定,Configurez votre profil
+account_settings.title.set_up_your_account,Set up your account,设置你的账户,アカウントを設定,Configurez votre compte
+profile_settings.label.display_name,Display name,显示名称,表示名,Nom d’affichage
+account_settings.toast.value_your_pin_was_updated_using_the_api,"{name}, your PIN was updated using the API",{name}，你的 PIN 已使用 API 更新,{name}、PIN は API を使用して更新されました,"{name}, votre PIN a été mis à jour avec l’API"

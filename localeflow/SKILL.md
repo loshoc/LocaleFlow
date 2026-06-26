@@ -85,8 +85,8 @@ python3 localeflow/scripts/process_figma_strings.py \
   --report-md localization_report.md \
   --report-json localization_report.json \
   --context-map context_map.json \
-  --figma-file "JBL One App" \
-  --page "Device Setup" \
+  --figma-file "Example App" \
+  --page "Account" \
   --scope "Selected frames"
 ```
 
@@ -108,22 +108,22 @@ JSON shape:
 {
   "source_language": "en",
   "target_languages": ["zh-Hans", "ja", "fr"],
-  "do_not_translate": ["JBL", "Bluetooth", "Wi-Fi"],
+  "do_not_translate": ["API", "PIN", "URL"],
   "glossary": [
     {
       "source": "pairing",
       "target_language": "zh-Hans",
       "translation": "配对",
-      "context": "Bluetooth connection",
+      "context": "Account setup",
       "notes": "Approved term."
     }
   ],
   "translation_memory": [
     {
-      "source": "Connect your device",
+      "source": "Set up your profile",
       "target_language": "zh-Hans",
-      "translation": "连接你的设备",
-      "key": "device_setup.title.connect_your_device"
+      "translation": "设置你的个人资料",
+      "key": "account_settings.title.set_up_your_profile"
     }
   ],
   "placeholder_patterns": [
@@ -148,9 +148,9 @@ CSV rules columns:
 
 ```csv
 type,source,target_language,translation,context,notes
-do_not_translate,JBL,,,Brand name,Keep unchanged
-glossary,pairing,zh-Hans,配对,Bluetooth connection,Approved term
-translation_memory,Connect your device,zh-Hans,连接你的设备,Device setup screen,Approved string
+do_not_translate,API,,,Technical term,Keep unchanged
+glossary,profile,zh-Hans,个人资料,Account settings,Approved term
+translation_memory,Set up your profile,zh-Hans,设置你的个人资料,Account settings screen,Approved string
 ```
 
 When rules are present, follow this priority:
@@ -227,7 +227,7 @@ Before production export, generate translations for each missing target-language
 Translation-generation rules:
 
 - Preserve placeholders exactly. Do not translate, rename, remove, duplicate, or reorder placeholders unless the target language grammar requires moving the whole unchanged token. Examples: `{name}`, `{{count}}`, `%@`, `%d`, `%s`, `$price`, `${price}`, `<bold>text</bold>`, `[link]`.
-- Preserve do-not-translate terms exactly, including brand names, product names, model names, protocols, file names, URLs, trademarks, and partner service names such as `JBL`, `Bluetooth`, `Wi-Fi`, `PartyBox`, or `Spotify Connect`.
+- Preserve do-not-translate terms exactly, including technical terms, placeholders, file names, URLs, trademarks, protocol names, and short product-neutral tokens such as `API`, `PIN`, or `URL`.
 - Reuse exact translation memory before generating a new translation.
 - Apply approved glossary translations consistently. If a glossary term appears inside a longer string, use the approved term naturally in the sentence.
 - Use target-language-specific style rules when present. If both global and target-language rules apply, follow both.
@@ -246,9 +246,9 @@ JSON shape:
 {
   "translations": [
     {
-      "source": "Connect your speaker",
+      "source": "Set up your account",
       "target_language": "zh-Hans",
-      "translation": "连接你的音箱"
+      "translation": "设置你的账户"
     }
   ]
 }
@@ -258,7 +258,7 @@ CSV columns:
 
 ```csv
 key,source,target_language,translation
-device_setup.button.connect,Connect,zh-Hans,连接
+account_settings.button.save,Save,zh-Hans,保存
 ```
 
 If a translation remains missing, production files can still be generated, but the report must mark `missing_translation` and `needs_review`.
@@ -347,12 +347,12 @@ Example:
 
 ```json
 {
-  "device_setup.button.connect": {
-    "source": "Connect",
+  "account_settings.button.save": {
+    "source": "Save",
     "figma_nodes": ["123:456"],
-    "figma_paths": ["Device Setup / Connect Speaker / Primary Button"],
-    "page": "Device Setup",
-    "frame": "Connect Speaker",
+    "figma_paths": ["Account / Account Settings / Primary Button"],
+    "page": "Account",
+    "frame": "Account Settings",
     "ui_role": "button",
     "status": "new",
     "matched_glossary_terms": ["connect"],

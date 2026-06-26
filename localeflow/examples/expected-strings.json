@@ -11,34 +11,34 @@
     "ja": "おかえりなさい、Kiwi",
     "fr": "Bon retour, Kiwi"
   },
-  "device_setup.toast.connection_failed": {
+  "account_settings.toast.connection_failed": {
     "source": "Connection failed",
     "zh-Hans": "连接失败",
     "ja": "接続に失敗しました",
     "fr": "Échec de la connexion"
   },
-  "device_setup.title.connect_your_device": {
-    "source": "Connect your device",
-    "zh-Hans": "连接你的设备",
-    "ja": "デバイスを接続",
-    "fr": "Connectez votre appareil"
+  "account_settings.title.set_up_your_profile": {
+    "source": "Set up your profile",
+    "zh-Hans": "设置你的个人资料",
+    "ja": "プロフィールを設定",
+    "fr": "Configurez votre profil"
   },
-  "device_setup.title.connect_your_speaker": {
-    "source": "Connect your speaker",
-    "zh-Hans": "连接你的音箱",
-    "ja": "スピーカーを接続",
-    "fr": "Connectez votre enceinte"
+  "account_settings.title.set_up_your_account": {
+    "source": "Set up your account",
+    "zh-Hans": "设置你的账户",
+    "ja": "アカウントを設定",
+    "fr": "Configurez votre compte"
   },
-  "audio_settings.label.ambient_sound": {
-    "source": "Ambient Sound",
-    "zh-Hans": "环境音",
-    "ja": "アンビエントサウンド",
-    "fr": "Son ambiant"
+  "profile_settings.label.display_name": {
+    "source": "Display name",
+    "zh-Hans": "显示名称",
+    "ja": "表示名",
+    "fr": "Nom d’affichage"
   },
-  "device_setup.toast.value_your_jbl_partybox_is_connected_via_bluetooth": {
-    "source": "{name}, your JBL PartyBox is connected via Bluetooth",
-    "zh-Hans": "{name}，你的 JBL PartyBox 已通过 Bluetooth 连接",
-    "ja": "{name}、JBL PartyBox は Bluetooth で接続されています",
-    "fr": "{name}, votre JBL PartyBox est connectée via Bluetooth"
+  "account_settings.toast.value_your_pin_was_updated_using_the_api": {
+    "source": "{name}, your PIN was updated using the API",
+    "zh-Hans": "{name}，你的 PIN 已使用 API 更新",
+    "ja": "{name}、PIN は API を使用して更新されました",
+    "fr": "{name}, votre PIN a été mis à jour avec l’API"
   }
 }

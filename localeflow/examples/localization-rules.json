@@ -2,38 +2,37 @@
   "source_language": "en",
   "target_languages": ["zh-Hans", "ja", "fr"],
   "do_not_translate": [
-    "JBL",
-    "Bluetooth",
-    "Wi-Fi",
-    "PartyBox"
+    "API",
+    "PIN",
+    "URL"
   ],
   "glossary": [
     {
-      "source": "ambient sound",
+      "source": "display name",
       "target_language": "zh-Hans",
-      "translation": "环境音",
-      "context": "Headphone sound mode",
-      "notes": "Approved product term."
+      "translation": "显示名称",
+      "context": "Profile setting",
+      "notes": "Approved UI term."
     },
     {
-      "source": "pairing",
+      "source": "profile",
       "target_language": "zh-Hans",
-      "translation": "配对",
-      "context": "Bluetooth connection"
+      "translation": "个人资料",
+      "context": "User account"
     }
   ],
   "translation_memory": [
     {
-      "source": "Connect your device",
+      "source": "Set up your profile",
       "target_language": "zh-Hans",
-      "translation": "连接你的设备",
-      "key": "device_setup.title.connect_your_device"
+      "translation": "设置你的个人资料",
+      "key": "account_settings.title.set_up_your_profile"
     },
     {
-      "source": "Connect your device",
+      "source": "Set up your profile",
       "target_language": "fr",
-      "translation": "Connectez votre appareil",
-      "key": "device_setup.title.connect_your_device"
+      "translation": "Configurez votre profil",
+      "key": "account_settings.title.set_up_your_profile"
     },
     {
       "source": "Something went wrong",
