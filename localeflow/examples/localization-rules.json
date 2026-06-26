@@ -1,0 +1,79 @@
+{
+  "source_language": "en",
+  "target_languages": ["zh-Hans", "ja", "fr"],
+  "do_not_translate": [
+    "JBL",
+    "Bluetooth",
+    "Wi-Fi",
+    "PartyBox"
+  ],
+  "glossary": [
+    {
+      "source": "ambient sound",
+      "target_language": "zh-Hans",
+      "translation": "环境音",
+      "context": "Headphone sound mode",
+      "notes": "Approved product term."
+    },
+    {
+      "source": "pairing",
+      "target_language": "zh-Hans",
+      "translation": "配对",
+      "context": "Bluetooth connection"
+    }
+  ],
+  "translation_memory": [
+    {
+      "source": "Connect your device",
+      "target_language": "zh-Hans",
+      "translation": "连接你的设备",
+      "key": "device_setup.title.connect_your_device"
+    },
+    {
+      "source": "Connect your device",
+      "target_language": "fr",
+      "translation": "Connectez votre appareil",
+      "key": "device_setup.title.connect_your_device"
+    },
+    {
+      "source": "Something went wrong",
+      "target_language": "zh-Hans",
+      "translation": "出了点问题",
+      "key": "common.error.something_went_wrong"
+    }
+  ],
+  "placeholder_patterns": [
+    "\\{[a-zA-Z0-9_]+\\}",
+    "\\{\\{[a-zA-Z0-9_]+\\}\\}",
+    "%@",
+    "%d",
+    "%s",
+    "\\$\\{[a-zA-Z0-9_]+\\}",
+    "\\[[a-zA-Z0-9_-]+\\]"
+  ],
+  "style_rules": {
+    "global": [
+      "Use concise mobile UI language.",
+      "Preserve all placeholders exactly.",
+      "Preserve do-not-translate terms exactly."
+    ],
+    "button": [
+      "Keep button labels short."
+    ],
+    "toast": [
+      "Use natural and lightweight wording."
+    ],
+    "error": [
+      "Make the message clear and actionable."
+    ],
+    "zh-Hans": [
+      "Use Simplified Chinese UI wording."
+    ],
+    "ja.button": [
+      "Prefer concise Japanese button labels."
+    ],
+    "fr": [
+      "Use concise French UI wording."
+    ]
+  }
+}

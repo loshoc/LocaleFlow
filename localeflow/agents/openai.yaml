@@ -1,0 +1,4 @@
+interface:
+  display_name: "LocaleFlow"
+  short_description: "Extract localization-ready strings from Figma designs."
+  default_prompt: "Extract UI strings from my selected Figma frames, compare them with an existing strings file, generate translations and stable localization keys, export clean production CSV/JSON, and create a report plus context map."

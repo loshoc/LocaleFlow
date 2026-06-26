@@ -1,0 +1,44 @@
+{
+  "common.button.cancel": {
+    "source": "Cancel",
+    "zh-Hans": "取消",
+    "ja": "キャンセル",
+    "fr": "Annuler"
+  },
+  "home_screen.title.welcome_back_kiwi": {
+    "source": "Welcome back, Kiwi",
+    "zh-Hans": "欢迎回来，Kiwi",
+    "ja": "おかえりなさい、Kiwi",
+    "fr": "Bon retour, Kiwi"
+  },
+  "device_setup.toast.connection_failed": {
+    "source": "Connection failed",
+    "zh-Hans": "连接失败",
+    "ja": "接続に失敗しました",
+    "fr": "Échec de la connexion"
+  },
+  "device_setup.title.connect_your_device": {
+    "source": "Connect your device",
+    "zh-Hans": "连接你的设备",
+    "ja": "デバイスを接続",
+    "fr": "Connectez votre appareil"
+  },
+  "device_setup.title.connect_your_speaker": {
+    "source": "Connect your speaker",
+    "zh-Hans": "连接你的音箱",
+    "ja": "スピーカーを接続",
+    "fr": "Connectez votre enceinte"
+  },
+  "audio_settings.label.ambient_sound": {
+    "source": "Ambient Sound",
+    "zh-Hans": "环境音",
+    "ja": "アンビエントサウンド",
+    "fr": "Son ambiant"
+  },
+  "device_setup.toast.value_your_jbl_partybox_is_connected_via_bluetooth": {
+    "source": "{name}, your JBL PartyBox is connected via Bluetooth",
+    "zh-Hans": "{name}，你的 JBL PartyBox 已通过 Bluetooth 连接",
+    "ja": "{name}、JBL PartyBox は Bluetooth で接続されています",
+    "fr": "{name}, votre JBL PartyBox est connectée via Bluetooth"
+  }
+}

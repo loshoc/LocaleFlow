@@ -1,0 +1,94 @@
+{
+  "translations": [
+    {
+      "source": "Welcome back, Kiwi",
+      "target_language": "zh-Hans",
+      "translation": "欢迎回来，Kiwi"
+    },
+    {
+      "source": "Welcome back, Kiwi",
+      "target_language": "ja",
+      "translation": "おかえりなさい、Kiwi"
+    },
+    {
+      "source": "Welcome back, Kiwi",
+      "target_language": "fr",
+      "translation": "Bon retour, Kiwi"
+    },
+    {
+      "source": "Cancel",
+      "target_language": "zh-Hans",
+      "translation": "取消"
+    },
+    {
+      "source": "Cancel",
+      "target_language": "ja",
+      "translation": "キャンセル"
+    },
+    {
+      "source": "Cancel",
+      "target_language": "fr",
+      "translation": "Annuler"
+    },
+    {
+      "source": "Connection failed",
+      "target_language": "zh-Hans",
+      "translation": "连接失败"
+    },
+    {
+      "source": "Connection failed",
+      "target_language": "ja",
+      "translation": "接続に失敗しました"
+    },
+    {
+      "source": "Connection failed",
+      "target_language": "fr",
+      "translation": "Échec de la connexion"
+    },
+    {
+      "source": "Connect your speaker",
+      "target_language": "zh-Hans",
+      "translation": "连接你的音箱"
+    },
+    {
+      "source": "Connect your device",
+      "target_language": "ja",
+      "translation": "デバイスを接続"
+    },
+    {
+      "source": "Connect your speaker",
+      "target_language": "ja",
+      "translation": "スピーカーを接続"
+    },
+    {
+      "source": "Connect your speaker",
+      "target_language": "fr",
+      "translation": "Connectez votre enceinte"
+    },
+    {
+      "source": "Ambient Sound",
+      "target_language": "ja",
+      "translation": "アンビエントサウンド"
+    },
+    {
+      "source": "Ambient Sound",
+      "target_language": "fr",
+      "translation": "Son ambiant"
+    },
+    {
+      "source": "{name}, your JBL PartyBox is connected via Bluetooth",
+      "target_language": "zh-Hans",
+      "translation": "{name}，你的 JBL PartyBox 已通过 Bluetooth 连接"
+    },
+    {
+      "source": "{name}, your JBL PartyBox is connected via Bluetooth",
+      "target_language": "ja",
+      "translation": "{name}、JBL PartyBox は Bluetooth で接続されています"
+    },
+    {
+      "source": "{name}, your JBL PartyBox is connected via Bluetooth",
+      "target_language": "fr",
+      "translation": "{name}, votre JBL PartyBox est connectée via Bluetooth"
+    }
+  ]
+}
