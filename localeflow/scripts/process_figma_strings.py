@@ -429,8 +429,49 @@ def contains_term(source: str, term: str) -> bool:
     return term.casefold() in source.casefold()
 
 
-def matched_do_not_translate(source: str, rules: dict[str, Any]) -> list[str]:
-    return [str(term) for term in rules.get("do_not_translate", []) if contains_term(source, str(term))]
+def infer_do_not_translate_terms(records: list[dict[str, Any]]) -> list[str]:
+    candidates: Counter[str] = Counter()
+    generic_sentence_starts = {
+        "Welcome",
+        "Connection",
+        "Set",
+        "Display",
+        "Cancel",
+        "Save",
+        "Done",
+        "Apply",
+        "Open",
+        "Close",
+        "Error",
+        "Settings",
+        "Account",
+        "Profile",
+    }
+    for record in records:
+        source = normalize_source(str(record.get("raw_text") or record.get("source") or record.get("text") or ""))
+        placeholders = set(extract_placeholders(source, [PLACEHOLDER_RE]))
+        scrubbed = source
+        for placeholder in placeholders:
+            scrubbed = scrubbed.replace(placeholder, " ")
+        tokens = re.findall(r"\b[A-Za-z][A-Za-z0-9+._-]{1,}\b", scrubbed)
+        for token in tokens:
+            if token in generic_sentence_starts:
+                continue
+            if token.isupper() and len(token) >= 2:
+                candidates[token] += 1
+                continue
+            if re.search(r"[A-Z].*[A-Z]", token) and not token.isupper():
+                candidates[token] += 1
+                continue
+            if re.search(r"\d", token) and re.search(r"[A-Za-z]", token):
+                candidates[token] += 1
+    return sorted(candidates)
+
+
+def matched_do_not_translate(source: str, rules: dict[str, Any], inferred_terms: list[str]) -> tuple[list[str], list[str]]:
+    explicit = [str(term) for term in rules.get("do_not_translate", []) if contains_term(source, str(term))]
+    inferred = [term for term in inferred_terms if contains_term(source, term) and term not in explicit]
+    return explicit, inferred
 
 
 def matched_glossary(source: str, rules: dict[str, Any], target_languages: list[str]) -> list[dict[str, str]]:
@@ -590,6 +631,8 @@ def make_report_tags(entry: dict[str, Any], duplicate_count: int, key_conflict: 
         tags.append("glossary_match")
     if entry.get("do_not_translate_terms"):
         tags.append("do_not_translate_match")
+    if entry.get("inferred_do_not_translate_terms"):
+        tags.append("inferred_do_not_translate")
     if entry.get("tm_status") in {"tm_exact_match", "tm_fuzzy_match"}:
         tags.append(str(entry["tm_status"]))
     if entry.get("generated_translation_languages"):
@@ -629,6 +672,8 @@ def build_entries(
     translations: dict[tuple[str, str, str], str],
     ignore_numeric: bool = False,
 ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    explicit_terms = {str(term).casefold() for term in rules.get("do_not_translate", [])}
+    inferred_terms = [term for term in infer_do_not_translate_terms(records) if term.casefold() not in explicit_terms]
     prepared = []
     for record in records:
         raw = str(record.get("raw_text") or record.get("source") or record.get("text") or "")
@@ -664,13 +709,13 @@ def build_entries(
         status = classify_entry(key, source, existing_by_key, existing_by_source)
         tm_status, exact_translations, fuzzy_tm = tm_matches(source, rules, target_languages)
         glossary_matches = matched_glossary(source, rules, target_languages)
-        dnt_matches = matched_do_not_translate(source, rules)
+        dnt_matches, inferred_dnt_matches = matched_do_not_translate(source, rules, inferred_terms)
         notes_parts = []
         if duplicate or identity_counts[identity] > 1:
             notes_parts.append(f"Duplicate locations: {identity_counts[identity]}")
         if glossary_matches:
             notes_parts.append("Use approved glossary translation.")
-        if dnt_matches:
+        if dnt_matches or inferred_dnt_matches:
             notes_parts.append("Preserve do-not-translate terms exactly.")
         notes_parts.extend(style_notes(record, rules, target_languages))
 
@@ -715,6 +760,7 @@ def build_entries(
             ),
             "matched_glossary_terms": ", ".join(match["source"] for match in glossary_matches),
             "do_not_translate_terms": ", ".join(dnt_matches),
+            "inferred_do_not_translate_terms": ", ".join(inferred_dnt_matches),
             "placeholder_status": current_placeholder_status,
             "style_notes": " | ".join(style_notes(record, rules, target_languages)),
             "generated_translation_languages": ", ".join(generated_translation_languages),
@@ -737,6 +783,7 @@ def build_entries(
         "conflicts": conflicts,
         "source_conflicts": detect_source_conflicts(existing_rows),
         "rule_conflicts": rules.get("rule_conflicts", []),
+        "inferred_do_not_translate_terms": inferred_terms,
         "status_counts": dict(Counter(entry["status"] for entry in entries)),
         "tm_status_counts": dict(Counter(entry["tm_status"] for entry in entries)),
         "placeholder_status_counts": dict(Counter(entry["placeholder_status"] for entry in entries)),
@@ -826,6 +873,17 @@ def build_review_items(
                     "source": entry["source"],
                     "issue": f"Missing target translations: {entry.get('missing_translation_languages')}",
                     "suggestion": "Generate or provide translations for every target language before release.",
+                }
+            )
+        if entry.get("inferred_do_not_translate_terms"):
+            items.append(
+                {
+                    "severity": "info",
+                    "type": "inferred_do_not_translate",
+                    "key": entry["key"],
+                    "source": entry["source"],
+                    "issue": f"LocaleFlow inferred these terms should remain unchanged: {entry.get('inferred_do_not_translate_terms')}",
+                    "suggestion": "Go ahead with this decision, or ask LocaleFlow to translate these terms if they should be localized.",
                 }
             )
         if "manual_key_recommended" in entry.get("report_tags", []):
@@ -960,6 +1018,7 @@ def build_report(
         "placeholder_errors": placeholder_errors,
         "rule_conflicts": len(rule_conflicts),
         "do_not_translate_matches": count_nonempty_terms(entries, "do_not_translate_terms"),
+        "inferred_do_not_translate_matches": count_nonempty_terms(entries, "inferred_do_not_translate_terms"),
         "glossary_matches": count_nonempty_terms(entries, "matched_glossary_terms"),
         "tm_exact_matches": tm_counts.get("tm_exact_match", 0),
         "tm_fuzzy_matches": tm_counts.get("tm_fuzzy_match", 0),
@@ -975,6 +1034,7 @@ def build_report(
         "review_items": review_items,
         "rule_conflicts": rule_conflicts,
         "source_conflicts": source_conflicts,
+        "inferred_do_not_translate_terms": summary.get("inferred_do_not_translate_terms", []),
     }
 
 
@@ -1037,11 +1097,24 @@ def write_report_markdown(path: Path, report: dict[str, Any]) -> None:
             ["Type", "Count"],
             [
                 ["Do-not-translate matches", summary["do_not_translate_matches"]],
+                ["Inferred do-not-translate matches", summary["inferred_do_not_translate_matches"]],
                 ["Glossary matches", summary["glossary_matches"]],
                 ["Translation memory exact matches", summary["tm_exact_matches"]],
                 ["Translation memory fuzzy matches", summary["tm_fuzzy_matches"]],
                 ["Rule conflicts", summary["rule_conflicts"]],
             ],
+        ),
+        "",
+        "## Inferred Do-Not-Translate Terms",
+        "",
+        (
+            "LocaleFlow inferred these terms should remain unchanged. Go ahead with this decision, "
+            "or ask LocaleFlow to translate specific terms if they should be localized."
+        ),
+        "",
+        markdown_table(
+            ["Term"],
+            [[term] for term in report.get("inferred_do_not_translate_terms", [])] or [["None"]],
         ),
         "",
         "## Screens With Most New Or Problematic Strings",
@@ -1156,6 +1229,7 @@ def write_advanced_csv(path: Path, entries: list[dict[str, Any]], target_languag
         "figma_path",
         "matched_glossary_terms",
         "do_not_translate_terms",
+        "inferred_do_not_translate_terms",
         "placeholder_status",
         "report_tags",
         "review_severity",
@@ -1237,6 +1311,7 @@ def build_context_map(
                 "status": entry.get("status", ""),
                 "matched_glossary_terms": [],
                 "do_not_translate_matches": [],
+                "inferred_do_not_translate_matches": [],
                 "needs_review": bool(entry.get("needs_review")),
             },
         )
@@ -1248,6 +1323,9 @@ def build_context_map(
             item["figma_paths"].append(path)
         item["matched_glossary_terms"] = [term.strip() for term in str(entry.get("matched_glossary_terms") or "").split(",") if term.strip()]
         item["do_not_translate_matches"] = [term.strip() for term in str(entry.get("do_not_translate_terms") or "").split(",") if term.strip()]
+        item["inferred_do_not_translate_matches"] = [
+            term.strip() for term in str(entry.get("inferred_do_not_translate_terms") or "").split(",") if term.strip()
+        ]
     return context
 
 

@@ -100,7 +100,7 @@
       "inside_component": false
     },
     {
-      "raw_text": "{name}, your PIN was updated using the API",
+      "raw_text": "{name}, your FlowKit PIN was updated using the API",
       "node_id": "123:462",
       "node_name": "PIN updated message",
       "page": "Account",

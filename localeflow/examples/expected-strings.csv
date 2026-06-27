@@ -5,4 +5,4 @@ account_settings.toast.connection_failed,Connection failed,连接失败,接続�
 account_settings.title.set_up_your_profile,Set up your profile,设置你的个人资料,プロフィールを設定,Configurez votre profil
 account_settings.title.set_up_your_account,Set up your account,设置你的账户,アカウントを設定,Configurez votre compte
 profile_settings.label.display_name,Display name,显示名称,表示名,Nom d’affichage
-account_settings.toast.value_your_pin_was_updated_using_the_api,"{name}, your PIN was updated using the API",{name}，你的 PIN 已使用 API 更新,{name}、PIN は API を使用して更新されました,"{name}, votre PIN a été mis à jour avec l’API"
+account_settings.toast.value_your_flowkit_pin_was_updated_using_the_api,"{name}, your FlowKit PIN was updated using the API",{name}，你的 FlowKit PIN 已使用 API 更新,{name}、FlowKit PIN は API を使用して更新されました,"{name}, votre PIN FlowKit a été mis à jour avec l’API"

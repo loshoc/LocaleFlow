@@ -166,6 +166,21 @@ When rules are present, follow this priority:
 
 Do not silently resolve rule conflicts. If the processor reports `rule_conflicts`, show them to the user and ask for review before treating translations as approved.
 
+## Inferred Do-Not-Translate Terms
+
+Use AI judgment to identify likely terms that should remain unchanged, even when the user did not list them in `do_not_translate`.
+
+Likely do-not-translate terms include:
+
+- brand names, organization names, app names, product names, and feature names
+- acronyms and all-caps technical tokens such as `API`, `PIN`, `SSO`, or `URL`
+- filenames, URLs, email addresses, protocol names, model names, and version-like tokens
+- partner/service names or proper nouns that are not ordinary UI words
+
+Do not ask the user to confirm each inferred term one by one. Preserve inferred terms during translation, then list them in `localization_report.md` and `localization_report.json` so the user can either go ahead with LocaleFlow's decision or ask to translate specific terms.
+
+If a user explicitly says a term should be translated, treat that instruction as an override for that run and do not preserve the term.
+
 ## Key Rules
 
 Generate keys with this preference order:
@@ -228,6 +243,7 @@ Translation-generation rules:
 
 - Preserve placeholders exactly. Do not translate, rename, remove, duplicate, or reorder placeholders unless the target language grammar requires moving the whole unchanged token. Examples: `{name}`, `{{count}}`, `%@`, `%d`, `%s`, `$price`, `${price}`, `<bold>text</bold>`, `[link]`.
 - Preserve do-not-translate terms exactly, including technical terms, placeholders, file names, URLs, trademarks, protocol names, and short product-neutral tokens such as `API`, `PIN`, or `URL`.
+- Preserve AI-inferred do-not-translate terms exactly, then list them in the report instead of repeatedly asking for confirmation.
 - Reuse exact translation memory before generating a new translation.
 - Apply approved glossary translations consistently. If a glossary term appears inside a longer string, use the approved term naturally in the sentence.
 - Use target-language-specific style rules when present. If both global and target-language rules apply, follow both.
@@ -317,6 +333,7 @@ The report should answer:
 - how many valid strings were extracted
 - how many strings are existing, new, changed, duplicated, or conflicting
 - how many glossary, do-not-translate, exact TM, and fuzzy TM matches were found
+- which terms LocaleFlow inferred should remain untranslated
 - how many entries need human review
 - whether placeholder errors or localization rule conflicts exist
 - which frames contain the most new or problematic strings

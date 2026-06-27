@@ -35,10 +35,10 @@
     "ja": "表示名",
     "fr": "Nom d’affichage"
   },
-  "account_settings.toast.value_your_pin_was_updated_using_the_api": {
-    "source": "{name}, your PIN was updated using the API",
-    "zh-Hans": "{name}，你的 PIN 已使用 API 更新",
-    "ja": "{name}、PIN は API を使用して更新されました",
-    "fr": "{name}, votre PIN a été mis à jour avec l’API"
+  "account_settings.toast.value_your_flowkit_pin_was_updated_using_the_api": {
+    "source": "{name}, your FlowKit PIN was updated using the API",
+    "zh-Hans": "{name}，你的 FlowKit PIN 已使用 API 更新",
+    "ja": "{name}、FlowKit PIN は API を使用して更新されました",
+    "fr": "{name}, votre PIN FlowKit a été mis à jour avec l’API"
   }
 }

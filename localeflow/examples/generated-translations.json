@@ -76,19 +76,19 @@
       "translation": "Nom d’affichage"
     },
     {
-      "source": "{name}, your PIN was updated using the API",
+      "source": "{name}, your FlowKit PIN was updated using the API",
       "target_language": "zh-Hans",
-      "translation": "{name}，你的 PIN 已使用 API 更新"
+      "translation": "{name}，你的 FlowKit PIN 已使用 API 更新"
     },
     {
-      "source": "{name}, your PIN was updated using the API",
+      "source": "{name}, your FlowKit PIN was updated using the API",
       "target_language": "ja",
-      "translation": "{name}、PIN は API を使用して更新されました"
+      "translation": "{name}、FlowKit PIN は API を使用して更新されました"
     },
     {
-      "source": "{name}, your PIN was updated using the API",
+      "source": "{name}, your FlowKit PIN was updated using the API",
       "target_language": "fr",
-      "translation": "{name}, votre PIN a été mis à jour avec l’API"
+      "translation": "{name}, votre PIN FlowKit a été mis à jour avec l’API"
     }
   ]
 }
