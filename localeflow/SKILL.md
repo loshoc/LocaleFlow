@@ -25,7 +25,7 @@ Ask for missing inputs before taking translation action when they affect output 
 - Components and instances: include both by default, recording node type context.
 - Non-translatable prefix: default `nt_`. Text layers with this prefix are extracted and reported as non-translatable.
 - Non-translatable export mode: default `exclude`. Text layers marked `nt_`, numeric-only strings, and symbol-only strings are listed in the report but omitted from production CSV/JSON unless the user explicitly asks to preserve `nt_` strings.
-- Key prefix: optional app/product namespace such as `app`, `checkout`, or `jbl_one`.
+- Key prefix: optional app/product namespace such as `app`, `checkout`, or `product_one`.
 - Preferred key naming style: optional; default is dot-separated semantic keys.
 - Translation rules or glossary: optional; preserve placeholders exactly.
 - Generated translations file: optional CSV or JSON when translations are generated before post-processing.

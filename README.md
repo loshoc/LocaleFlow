@@ -14,21 +14,13 @@ localization_report.md
 
 ## Install
 
-In Codex, ask:
+Install the `localeflow` skill folder from this repository with your code agent's skill installer:
 
 ```text
-Install the skill from https://github.com/loshoc/LocaleFlow/tree/main/localeflow
+https://github.com/loshoc/LocaleFlow/tree/main/localeflow
 ```
 
-Or use the skill installer helper directly:
-
-```bash
-python3 ~/.codex/skills/.system/skill-installer/scripts/install-skill-from-github.py \
-  --repo loshoc/LocaleFlow \
-  --path localeflow
-```
-
-Restart Codex after installing so the new skill is loaded.
+Restart your agent after installing so the new skill is loaded.
 
 ## What It Does
 
