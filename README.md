@@ -12,6 +12,24 @@ localization_report.md
 
 `strings.csv` and `strings.json` contain the same production table content. The Markdown report keeps concise changelog counts, review items, and report-only strings in one file by appending a timestamped section for each run.
 
+## Install
+
+In Codex, ask:
+
+```text
+Install the skill from https://github.com/loshoc/LocaleFlow/tree/main/localeflow
+```
+
+Or use the skill installer helper directly:
+
+```bash
+python3 ~/.codex/skills/.system/skill-installer/scripts/install-skill-from-github.py \
+  --repo loshoc/LocaleFlow \
+  --path localeflow
+```
+
+Restart Codex after installing so the new skill is loaded.
+
 ## What It Does
 
 - Extracts visible Figma text from selected nodes first, then the current page.
