@@ -68,6 +68,13 @@ def is_non_production_source(text: str) -> bool:
     return is_numeric_like(text) or is_symbol_like(text)
 
 
+def localizable_dynamic_time_label(text: str) -> str:
+    match = re.fullmatch(r"(今天|明天|昨天|今日|明日|昨日)\s+\d{1,2}:\d{2}\s*-\s*\d{1,2}:\d{2}", text)
+    if match:
+        return match.group(1)
+    return text
+
+
 def number_placeholders_for_source(text: str) -> tuple[str, list[tuple[str, str]]]:
     if is_non_production_source(text):
         return text, []
@@ -621,6 +628,8 @@ def infer_do_not_translate_terms(records: list[dict[str, Any]]) -> list[str]:
     }
     for record in records:
         source = normalize_source(record_text(record))
+        for match in re.finditer(r"([\u4e00-\u9fff]{1,3})(教练|老师|医生|顾问)\b", source):
+            candidates[match.group(1)] += 1
         placeholders = set(extract_placeholders(source, [PLACEHOLDER_RE]))
         scrubbed = source
         for placeholder in placeholders:
@@ -897,7 +906,7 @@ def build_entries(
     sorted_records = sorted(records, key=visual_sort_key)
     for record in sorted_records:
         raw = record_text(record)
-        normalized = normalize_source(raw)
+        normalized = localizable_dynamic_time_label(normalize_source(raw))
         if not is_valid_source(normalized, ignore_numeric):
             continue
         source, number_replacements = number_placeholders_for_source(normalized)
@@ -1381,74 +1390,51 @@ def write_report_json(path: Path, report: dict[str, Any]) -> None:
 def write_report_markdown(path: Path, report: dict[str, Any], changelog: dict[str, Any] | None = None) -> None:
     summary = report["report_summary"]
     impact = report["change_impact"]
-    frame_rows = report["frame_breakdown"][:10]
-    review_rows = report["review_items"][:25]
+    review_rows = [row for row in report["review_items"] if row.get("severity") != "info"][:10]
     changelog = changelog or {"summary": {}, "added": [], "changed": [], "removed": [], "report_only": []}
     changelog_summary = changelog.get("summary", {})
 
-    def changelog_rows(items: list[dict[str, Any]], include_reason: bool = False) -> list[list[str]]:
+    def changelog_rows(items: list[dict[str, Any]], include_reason: bool = False, limit: int = 20) -> list[list[str]]:
         rows = []
-        for item in items[:50]:
+        for item in items[:limit]:
             row = [item.get("key", ""), item.get("source", "")]
             if include_reason:
                 row.append(item.get("reason", ""))
             rows.append(row)
         return rows
 
+    exported_at = summary.get("exported_at") or datetime.now(timezone.utc).isoformat()
     lines = [
-        "# Localization Extraction Report",
+        f"## Run {exported_at}",
         "",
-        "## Summary",
+        "### Summary",
         "",
         f"- Figma file: {summary['figma_file'] or ''}",
-        f"- Page: {summary['page'] or ''}",
-        f"- Scope: {summary['scope'] or ''}",
-        f"- Source language: {summary['source_language']}",
-        f"- Target languages: {', '.join(summary['target_languages'])}",
-        f"- Text layers scanned: {summary['text_layers_scanned']}",
-        f"- Valid strings extracted: {summary['strings_extracted']}",
-        f"- Unique strings: {summary['unique_strings']}",
-        "",
-        "## Change Impact",
-        "",
+        f"- Page / scope: {summary['page'] or ''} / {summary['scope'] or ''}",
+        f"- Languages: {summary['source_language']} -> {', '.join(summary['target_languages'])}",
+        f"- Scanned / unique / exported: {summary['text_layers_scanned']} / {summary['unique_strings']} / {summary.get('production_rows', 0)}",
         f"- Level: {impact['level']}",
-        f"- Reason: {impact['reason']}",
         "",
-        "## String Status",
-        "",
-        markdown_table(
-            ["Status", "Count"],
-            [
-                ["Existing strings", summary["existing_strings"]],
-                ["New strings", summary["new_strings"]],
-                ["Changed strings", summary["changed_strings"]],
-                ["Duplicates", summary["duplicates"]],
-                ["Key conflicts", summary["key_conflicts"]],
-                ["Source conflicts", summary["source_conflicts"]],
-                ["Placeholder errors", summary["placeholder_errors"]],
-                ["Missing translations", summary["missing_translations"]],
-                ["Needs review", summary["needs_review"]],
-                ["Non-translatable", summary["non_translatable"]],
-                ["Report-only strings", summary["non_production"]],
-            ],
-        ),
-        "",
-        "## Changelog",
+        "### Counts",
         "",
         markdown_table(
-            ["Type", "Count"],
+            ["Metric", "Count"],
             [
                 ["Added", changelog_summary.get("added", 0)],
                 ["Changed", changelog_summary.get("changed", 0)],
                 ["Existing", changelog_summary.get("existing", 0)],
                 ["Removed", changelog_summary.get("removed", 0)],
                 ["Report-only", changelog_summary.get("report_only", 0)],
+                ["Source conflicts", summary["source_conflicts"]],
+                ["Placeholder errors", summary["placeholder_errors"]],
+                ["Missing translations", summary["missing_translations"]],
+                ["Needs review", summary["needs_review"]],
             ],
         ),
         "",
         "### Added",
         "",
-        markdown_table(["Key", "Source"], changelog_rows(changelog.get("added", [])) or [["None", ""]]),
+        markdown_table(["Key", "Source"], changelog_rows(changelog.get("added", []), limit=25) or [["None", ""]]),
         "",
         "### Changed",
         "",
@@ -1465,43 +1451,7 @@ def write_report_markdown(path: Path, report: dict[str, Any], changelog: dict[st
             changelog_rows(changelog.get("report_only", []), include_reason=True) or [["None", "", ""]],
         ),
         "",
-        "## Localization Rule Matches",
-        "",
-        markdown_table(
-            ["Type", "Count"],
-            [
-                ["Do-not-translate matches", summary["do_not_translate_matches"]],
-                ["Inferred do-not-translate matches", summary["inferred_do_not_translate_matches"]],
-                ["Glossary matches", summary["glossary_matches"]],
-                ["Translation memory exact matches", summary["tm_exact_matches"]],
-                ["Translation memory fuzzy matches", summary["tm_fuzzy_matches"]],
-                ["Rule conflicts", summary["rule_conflicts"]],
-            ],
-        ),
-        "",
-        "## Inferred Do-Not-Translate Terms",
-        "",
-        (
-            "LocaleFlow inferred these terms should remain unchanged. Go ahead with this decision, "
-            "or ask LocaleFlow to translate specific terms if they should be localized."
-        ),
-        "",
-        markdown_table(
-            ["Term"],
-            [[term] for term in report.get("inferred_do_not_translate_terms", [])] or [["None"]],
-        ),
-        "",
-        "## Screens With Most New Or Problematic Strings",
-        "",
-        markdown_table(
-            ["Frame", "New Strings", "Needs Review", "Conflicts"],
-            [
-                [f"{row['page']} / {row['frame']}", row["new_strings"], row["needs_review"], row["key_conflicts"]]
-                for row in frame_rows
-            ],
-        ),
-        "",
-        "## Items Requiring Review",
+        "### Items Requiring Review",
         "",
         markdown_table(
             ["Severity", "Key", "Source", "Issue", "Suggested Action"],
@@ -1511,19 +1461,15 @@ def write_report_markdown(path: Path, report: dict[str, Any], changelog: dict[st
             ],
         ),
         "",
-        "## Suggested Next Actions",
-        "",
-        f"1. Review {summary['needs_review']} strings marked as `needs_review`.",
-        f"2. Resolve {summary['key_conflicts']} key conflicts before merging the exported string file.",
-        f"3. Resolve {summary['source_conflicts']} source conflicts in the existing localization file.",
-        f"4. Fix {summary['placeholder_errors']} placeholder errors.",
-        f"5. Add {summary['missing_translations']} missing target translations.",
-        f"6. Confirm {summary['tm_fuzzy_matches']} fuzzy translation memory matches before reuse.",
-        "7. Add missing standard translations for repeated terms if needed.",
-        "",
     ]
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text("\n".join(lines), encoding="utf-8")
+    run_text = "\n".join(lines).rstrip() + "\n"
+    if path.exists() and path.read_text(encoding="utf-8").strip():
+        with path.open("a", encoding="utf-8") as handle:
+            handle.write("\n---\n\n")
+            handle.write(run_text)
+    else:
+        path.write_text("# Localization Report\n\n" + run_text, encoding="utf-8")
 
 
 def build_production_rows(
@@ -2055,6 +2001,7 @@ def main() -> int:
         if args.format in {"json", "both"}:
             write_advanced_json(json_path, entries, source_language, target_languages, args.dedupe_mode, summary, report)
 
+    report["report_summary"]["production_rows"] = len(production_rows)
     report_json = args.report_json
     report_md = args.report_md or args.output.parent / "localization_report.md"
     context_map_path = args.context_map

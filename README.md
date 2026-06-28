@@ -1,6 +1,6 @@
 # LocaleFlow
 
-LocaleFlow is a Codex skill for extracting localization-ready UI strings from Figma, generating stable keys and translations, and exporting clean production files for product localization.
+LocaleFlow is a skill for extracting localization-ready UI strings from Figma, generating stable keys and translations, and exporting clean production files for product localization.
 
 The default workflow is intentionally small:
 
@@ -10,7 +10,7 @@ strings.json
 localization_report.md
 ```
 
-`strings.csv` and `strings.json` contain the same production table content. The Markdown report contains the changelog, review items, conflicts, and report-only strings.
+`strings.csv` and `strings.json` contain the same production table content. The Markdown report keeps concise changelog counts, review items, and report-only strings in one file by appending a timestamped section for each run.
 
 ## What It Does
 
@@ -59,7 +59,6 @@ python3 localeflow/scripts/process_figma_strings.py \
   --translations generated-translations.json \
   --dedupe-mode context-aware \
   --non-translatable-prefix nt_ \
-  --report-md localization_report.md \
   --figma-file "Example App" \
   --page "Account" \
   --scope "Selected frames"
@@ -75,6 +74,8 @@ localization_report.md
 
 The CLI response is compact and includes only output paths plus actionable counts.
 
+`extracted.json` and generated translation JSON are internal handoff formats for the processor. They are not default user-facing deliverables and do not need to be kept unless you want debug or audit input snapshots.
+
 ## Repeated Exports
 
 For later Figma exports, pass the previous production file with `--existing`:
@@ -85,8 +86,7 @@ python3 localeflow/scripts/process_figma_strings.py \
   --existing strings.csv \
   --output strings \
   --target-languages en,ja \
-  --translations generated-translations.json \
-  --report-md localization_report.md
+  --translations generated-translations.json
 ```
 
 The report changelog classifies production rows as added, changed, existing, removed, or report-only. Existing `key,<source_language>,...` files are supported, including source columns such as `en`, `zh`, or `source`.
@@ -133,17 +133,14 @@ Text layers named with the `nt_` prefix are extracted for reporting but are excl
 
 ## Report
 
-`localization_report.md` is the only default report. It includes:
+`localization_report.md` is the only default report. It appends each export as a timestamped section and includes concise data:
 
-- extraction counts
-- changelog counts and rows
+- summary counts
+- added, changed, removed, and report-only rows
 - report-only strings
-- duplicate and conflict counts
 - placeholder errors
 - missing translations
-- inferred do-not-translate terms
-- frames with the most new or problematic strings
-- suggested next actions
+- entries requiring review
 
 Machine-readable files are opt-in only:
 
@@ -168,6 +165,6 @@ Use these only for automation, debugging, or deeper Figma traceability.
 
 #### localeflow
 
-[SOURCE CODE](https://github.com/YOUR_ORG/LocaleFlow) · [MIT](https://github.com/YOUR_ORG/LocaleFlow/blob/main/LICENSE) **MCP Tools:** `use_figma`
+[SOURCE CODE](https://github.com/loshoc/LocaleFlow/tree/main/localeflow) · [MIT](https://github.com/loshoc/LocaleFlow/blob/main/LICENSE) **MCP Tools:** `use_figma`
 
 Extracts visible UI strings from Figma, generates stable semantic localization keys, preserves placeholders and non-translatable content, exports matching production CSV/JSON files, and writes one human-readable localization report with changelog and review guidance.

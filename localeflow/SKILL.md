@@ -9,7 +9,7 @@ LocaleFlow turns visible Figma UI text into structured localization entries. It 
 
 Core principle: production localization files stay clean. Put only `key`, the source-language column, and target-language values in production CSV/JSON. CSV and JSON should share the same table content. The source column should use the language code such as `en` or `zh` when the source language is known, not the generic label `source`.
 
-Output principle: default to exactly three user-facing files: `strings.csv`, `strings.json`, and `localization_report.md`. The report should include the changelog, review items, and report-only strings. Do not create separate context-map, changelog, or report JSON files unless the user explicitly asks for machine-readable/debug artifacts.
+Output principle: default to two production files plus one stable report: `strings.csv`, `strings.json`, and `localization_report.md`. The report should append a timestamped run section each time and include concise data: counts, changelog rows, review items, and report-only strings. Do not create separate extraction JSON, context-map, changelog, or report JSON files unless the user explicitly asks for machine-readable/debug artifacts.
 
 ## Required Inputs
 
@@ -44,7 +44,7 @@ Ask for missing inputs before taking translation action when they affect output 
 10. Generate draft translations for missing target-language values only after target languages are confirmed, then pass them to the processor with `--translations`.
 11. Reuse exact translation memory matches, apply full-string glossary matches, validate generated translations, and flag fuzzy matches for review.
 12. Export the final merged localization table by default, unless the user explicitly asks for only new or changed strings.
-13. Generate `strings.csv`, `strings.json`, and one Markdown report with changelog, review items, and report-only strings.
+13. Generate `strings.csv`, `strings.json`, and update one Markdown report with a concise timestamped run section, changelog, review items, and report-only strings.
 
 ## Figma Extraction
 
@@ -103,7 +103,6 @@ python3 localeflow/scripts/process_figma_strings.py \
   --translations generated-translations.json \
   --non-translatable-prefix nt_ \
   --non-translatable-mode exclude \
-  --report-md localization_report.md \
   --figma-file "Example App" \
   --page "Account" \
   --scope "Selected frames"
@@ -111,23 +110,25 @@ python3 localeflow/scripts/process_figma_strings.py \
 
 The script accepts extracted records as either a JSON array or an object with `strings`, `records`, or `items`. Existing files may be CSV or JSON.
 
+`extracted.json` and generated translation JSON are internal handoff/debug files. Do not keep them as user-facing deliverables unless the user explicitly asks for machine-readable audit inputs.
+
 If `--target-languages` is omitted, the processor tries `target_languages` from the rules file and then target-language columns from the existing localization file. If no target languages are found, it exits with a clear error so the agent can ask the user.
 
 If `--source-language` is omitted, the processor infers it from extracted strings and writes the inferred value to reports.
 
 The processor defaults to `--format both`, which writes a CSV and JSON version of the same production table. Use `--format csv` or `--format json` only when the user asks for a single file.
 
+If `--report-md` is omitted, the processor writes to `localization_report.md` beside the production output and appends a timestamped section instead of overwriting earlier runs. Use `--report-md` only when a different fixed report path is explicitly desired.
+
 Use `--export-mode advanced` only when the user explicitly wants metadata in the exported string file. Production export mode is the default.
 
 Production CSV/JSON must contain only `key`, the source-language column such as `en` or `zh`, and target-language columns. Do not add Figma metadata, review flags, non-translatable flags, numeric-only rows, symbol-only rows, node IDs, hashes, run IDs, or version columns to production exports.
 
-The Markdown report should focus on human decisions:
+The Markdown report should stay concise and focus on data needed for review:
 
-- overall counts
-- changelog counts and rows for added, changed, removed, and report-only strings
+- summary counts
+- added, changed, removed, and report-only strings
 - conflicts, missing translations, placeholder errors, and review items
-- inferred do-not-translate terms
-- screens with the most new or problematic strings
 
 For repeated exports, prefer passing the previous `strings.csv` or `strings.json` with `--existing`. The changelog can derive added, changed, existing, and removed keys from the existing production file. If a team needs deeper automation, `--previous-context-map`, `--context-map`, `--report-json`, `--changelog-json`, and `--changelog-md` remain available as explicit opt-in outputs.
 
@@ -209,8 +210,9 @@ Likely do-not-translate terms include:
 - acronyms and all-caps technical tokens such as `API`, `PIN`, `SSO`, or `URL`
 - filenames, URLs, email addresses, protocol names, model names, and version-like tokens
 - partner/service names or proper nouns that are not ordinary UI words
+- person names, including names followed by role titles such as `小张教练`; preserve the name token and translate only the role/title when appropriate
 
-Do not ask the user to confirm each inferred term one by one. Preserve inferred terms during translation, then list them in `localization_report.md` so the user can either go ahead with LocaleFlow's decision or ask to translate specific terms.
+Do not ask the user to confirm each inferred term one by one. Preserve inferred terms during translation and include only actionable review data in the Markdown report.
 
 If a user explicitly says a term should be translated, treat that instruction as an override for that run and do not preserve the term.
 
@@ -241,6 +243,7 @@ Examples:
 - Preserve placeholders exactly in exported source text.
 - Do not translate numeric-only strings or strings made only of numbers plus numeric symbols, punctuation, percentages, or currency signs. Keep them in the report but omit them from production CSV/JSON.
 - When a number appears inside otherwise translatable copy, replace the number with a stable placeholder such as `{number_1}` before translation and require the same placeholder in every target-language value.
+- When a relative date label is followed by a concrete time range, localize only the date label. For example, `今天 18:35 - 19:35` should export as `今天`, because the time range is dynamic content.
 - For key generation, replace dynamic values with stable placeholder concepts when obvious.
 - Treat URLs, email addresses, filenames, trademarks, and product model names as strings that may need translator notes.
 
@@ -347,11 +350,11 @@ key,source,zh-Hans,ja,fr,status,page,frame,node_id,ui_role,figma_path,notes
 
 ## Extraction Report
 
-Generate one Markdown report after each extraction/comparison.
+Update one Markdown report after each extraction/comparison. Do not create separate report files by default; append a timestamped run section to preserve history without cluttering the output folder.
 
 Supported report outputs:
 
-- Markdown: `--report-md localization_report.md`
+- Markdown: `localization_report.md` by default, or another fixed path via `--report-md`
 - Optional machine-readable JSON: `--report-json localization_report.json`
 
 Recommended output set:
@@ -362,16 +365,12 @@ strings.json
 localization_report.md
 ```
 
-The report should answer:
+The report should concisely answer:
 
 - how many text layers were scanned
-- how many valid strings were extracted
-- how many strings are existing, new, changed, duplicated, or conflicting
-- how many glossary, do-not-translate, exact TM, and fuzzy TM matches were found
-- which terms LocaleFlow inferred should remain untranslated
-- how many entries need human review
+- how many strings are added, changed, existing, removed, and report-only
 - whether placeholder errors or localization rule conflicts exist
-- which frames contain the most new or problematic strings
+- which entries need human review
 
 Internally, each processed string can include `report_tags`, such as:
 
@@ -444,7 +443,7 @@ Before final delivery:
 - Check duplicate and conflict counts.
 - Check `rule_conflicts`, `tm_status`, `needs_review`, and `placeholder_status`.
 - Confirm production CSV/JSON contains no Figma metadata unless `--export-mode advanced` was requested.
-- Confirm `strings.csv`, `strings.json`, and `localization_report.md` were generated by default.
+- Confirm `strings.csv`, `strings.json`, and an appended `localization_report.md` were generated by default.
 - Verify generated keys are deterministic across repeated runs.
 - Confirm placeholder tokens in `source` are unchanged.
 - Show the output path and a short classification summary.
