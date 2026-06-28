@@ -14,7 +14,7 @@ from difflib import SequenceMatcher
 from pathlib import Path
 from typing import Any
 
-PROCESSOR_VERSION = "0.3.0"
+PROCESSOR_VERSION = "0.4.0"
 
 PLACEHOLDER_RE = re.compile(
     r"(\{\{[^{}]+\}\}|\$\{[^{}]+\}|\{[^{}]+\}|%[@dfs]|[$][A-Za-z_][A-Za-z0-9_]*|"
@@ -375,10 +375,180 @@ def empty_rules() -> dict[str, Any]:
     }
 
 
+def markdown_plain_text(value: str) -> str:
+    value = value.strip()
+    value = re.sub(r"^`(.+)`$", r"\1", value)
+    return value.strip()
+
+
+def markdown_section_name(line: str) -> str:
+    match = re.match(r"^#{1,6}\s+(.+?)\s*#*\s*$", line.strip())
+    if not match:
+        return ""
+    name = match.group(1).strip().casefold()
+    return re.sub(r"[^a-z0-9]+", "_", name).strip("_")
+
+
+def markdown_table_cells(line: str) -> list[str]:
+    line = line.strip()
+    if line.startswith("|"):
+        line = line[1:]
+    if line.endswith("|"):
+        line = line[:-1]
+    return [markdown_plain_text(cell) for cell in line.split("|")]
+
+
+def is_markdown_table_separator(cells: list[str]) -> bool:
+    return bool(cells) and all(re.fullmatch(r":?-{3,}:?", cell.strip()) for cell in cells)
+
+
+def read_markdown_table(lines: list[str], start: int) -> tuple[list[dict[str, str]], int]:
+    header = markdown_table_cells(lines[start])
+    rows: list[dict[str, str]] = []
+    index = start + 1
+    if index < len(lines) and lines[index].strip().startswith("|"):
+        separator = markdown_table_cells(lines[index])
+        if is_markdown_table_separator(separator):
+            index += 1
+    while index < len(lines) and lines[index].strip().startswith("|"):
+        cells = markdown_table_cells(lines[index])
+        row = {header[column].strip(): cells[column].strip() for column in range(min(len(header), len(cells)))}
+        rows.append(row)
+        index += 1
+    return rows, index
+
+
+def markdown_row_value(row: dict[str, str], *names: str) -> str:
+    normalized = {key.casefold(): value for key, value in row.items()}
+    for name in names:
+        value = normalized.get(name.casefold())
+        if value:
+            return value
+    return ""
+
+
+def add_target_language(rules: dict[str, Any], language: str) -> None:
+    language = markdown_plain_text(language)
+    if language and language not in rules["target_languages"]:
+        rules["target_languages"].append(language)
+
+
+def handle_markdown_rules_table(section: str, rows: list[dict[str, str]], rules: dict[str, Any]) -> None:
+    metadata_columns = {"source", "term", "target_language", "translation", "context", "notes", "scope", "rule"}
+    for row in rows:
+        if section in {"target_languages", "target_language", "languages"}:
+            add_target_language(
+                rules,
+                markdown_row_value(row, "language", "target_language", "source", "code"),
+            )
+        elif section in {"do_not_translate", "non_translatable", "non_translatable_vocabulary"}:
+            source = markdown_row_value(row, "source", "term", "vocabulary")
+            if source:
+                rules["do_not_translate"].append(source)
+        elif section in {"style_rules", "translation_style", "special_translation_rules"}:
+            scope = markdown_row_value(row, "scope", "source") or "global"
+            rule = markdown_row_value(row, "rule", "notes", "translation")
+            if rule:
+                rules["style_rules"].setdefault(scope, []).append(rule)
+        elif section in {"glossary", "approved_terms"}:
+            source = markdown_row_value(row, "source", "term")
+            if not source:
+                continue
+            target_language = markdown_row_value(row, "target_language")
+            translation = markdown_row_value(row, "translation")
+            if target_language and translation:
+                rules["glossary"].append(
+                    {
+                        "source": source,
+                        "target_language": target_language,
+                        "translation": translation,
+                        "context": markdown_row_value(row, "context"),
+                        "notes": markdown_row_value(row, "notes"),
+                    }
+                )
+                continue
+            for language, translation in row.items():
+                if language.casefold() in metadata_columns or not translation:
+                    continue
+                rules["glossary"].append(
+                    {
+                        "source": source,
+                        "target_language": language,
+                        "translation": translation,
+                        "context": markdown_row_value(row, "context"),
+                        "notes": markdown_row_value(row, "notes"),
+                    }
+                )
+        elif section in {"translation_memory", "approved_strings"}:
+            source = markdown_row_value(row, "source")
+            if not source:
+                continue
+            target_language = markdown_row_value(row, "target_language")
+            translation = markdown_row_value(row, "translation")
+            if target_language and translation:
+                rules["translation_memory"].append(
+                    {
+                        "source": source,
+                        "target_language": target_language,
+                        "translation": translation,
+                        "context": markdown_row_value(row, "context"),
+                        "notes": markdown_row_value(row, "notes"),
+                    }
+                )
+                continue
+            for language, translation in row.items():
+                if language.casefold() in metadata_columns or not translation:
+                    continue
+                rules["translation_memory"].append(
+                    {
+                        "source": source,
+                        "target_language": language,
+                        "translation": translation,
+                        "context": markdown_row_value(row, "context"),
+                        "notes": markdown_row_value(row, "notes"),
+                    }
+                )
+
+
+def load_markdown_rules(path: Path, rules: dict[str, Any]) -> dict[str, Any]:
+    section = ""
+    lines = path.read_text(encoding="utf-8").splitlines()
+    index = 0
+    while index < len(lines):
+        stripped = lines[index].strip()
+        header = markdown_section_name(stripped)
+        if header:
+            section = header
+            index += 1
+            continue
+        if stripped.startswith("|"):
+            rows, index = read_markdown_table(lines, index)
+            handle_markdown_rules_table(section, rows, rules)
+            continue
+        if stripped.startswith(("- ", "* ")):
+            item = markdown_plain_text(stripped[2:].strip())
+            if section in {"target_languages", "target_language", "languages"}:
+                add_target_language(rules, item)
+            elif section in {"do_not_translate", "non_translatable", "non_translatable_vocabulary"} and item:
+                rules["do_not_translate"].append(item)
+            elif section in {"style_rules", "translation_style", "special_translation_rules"} and item:
+                if ":" in item:
+                    scope, rule = item.split(":", 1)
+                    rules["style_rules"].setdefault(scope.strip() or "global", []).append(rule.strip())
+                else:
+                    rules["style_rules"].setdefault("global", []).append(item)
+        index += 1
+    rules["rule_conflicts"] = detect_rule_conflicts(rules)
+    return rules
+
+
 def load_rules(path: Path | None) -> dict[str, Any]:
     rules = empty_rules()
     if not path:
         return rules
+
+    if path.suffix.lower() in {".md", ".markdown"}:
+        return load_markdown_rules(path, rules)
 
     if path.suffix.lower() == ".csv":
         with path.open(newline="", encoding="utf-8") as handle:
@@ -427,7 +597,7 @@ def load_rules(path: Path | None) -> dict[str, Any]:
 
     loaded = json.loads(path.read_text(encoding="utf-8"))
     if not isinstance(loaded, dict):
-        raise ValueError(f"Rules file must be a JSON object or supported CSV: {path}")
+        raise ValueError(f"Rules file must be a JSON object, supported CSV, or supported Markdown: {path}")
     rules.update(loaded)
     rules.setdefault("do_not_translate", [])
     rules.setdefault("glossary", [])
