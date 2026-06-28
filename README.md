@@ -94,6 +94,28 @@ The CLI response is compact and includes only output paths plus actionable count
 
 `extracted.json` and generated translation JSON are internal handoff formats for the processor. They are not default user-facing deliverables and do not need to be kept unless you want debug or audit input snapshots.
 
+## Extract Only
+
+Use extract-only mode when you want localization-ready source strings and keys without generating translations:
+
+```bash
+python3 localeflow/scripts/process_figma_strings.py \
+  --input extracted.json \
+  --output strings \
+  --extract-only \
+  --dedupe-mode context-aware
+```
+
+This writes `strings.csv`, `strings.json`, and `localization_report.md`. The production files contain only `key` plus the inferred source-language column:
+
+```csv
+key,zh
+course_name.title.course_name,课程名称
+today.label.today,今天
+```
+
+Use this mode for copy review, first-pass string inventory, or when translations will be added later by humans or another system.
+
 ## Repeated Exports
 
 For later Figma exports, pass the previous production file with `--existing`:

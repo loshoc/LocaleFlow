@@ -19,7 +19,7 @@ Ask for missing inputs before taking translation action when they affect output 
 - Existing localization file: optional CSV or JSON path/content. Before extracting or translating, ask whether the user has one unless they already provided a file, explicitly said there is no existing file, or asked for extraction only.
 - Output format: CSV, JSON, or both. Default to both when the user does not specify.
 - Source language: infer from extracted Figma strings by default. Only override when the user explicitly provides a source language.
-- Target languages: infer from existing localization file columns or rules file `target_languages`. If no existing file or rules file supplies target languages, ask the user to confirm the target languages before generating translations or final localization files.
+- Target languages: infer from existing localization file columns or rules file `target_languages`. If no existing file or rules file supplies target languages, ask the user to confirm the target languages before generating translations. Do not ask for target languages when the user asks for extract-only/no-translation output.
 - Dedupe mode: `context-aware` by default, or `global`.
 - Hidden layers: exclude by default unless requested.
 - Components and instances: include both by default, recording node type context.
@@ -33,18 +33,19 @@ Ask for missing inputs before taking translation action when they affect output 
 ## Workflow
 
 1. Identify whether the user has an existing localization file. If this is unknown, ask first. If the user confirms there is no existing file, create a new localization output from the extracted Figma strings.
-2. Determine target languages from the existing file or rules file. If no target languages are discoverable, ask the user which languages are needed before translating or exporting.
-3. Extract text nodes from Figma with MCP. Scope priority is selected nodes first, then current page, then all pages only when explicitly requested.
-4. Infer the source language from extracted strings.
-5. Load optional localization rules, glossary, and translation memory.
-6. Normalize source strings and detect placeholders.
-7. Compare with any existing CSV or JSON string file.
-8. Generate deterministic, human-readable keys from frame/context, UI role, and content.
-9. Classify entries as `new`, `existing`, `changed`, `duplicate`, or `conflict`.
-10. Generate draft translations for missing target-language values only after target languages are confirmed, then pass them to the processor with `--translations`.
-11. Reuse exact translation memory matches, apply full-string glossary matches, validate generated translations, and flag fuzzy matches for review.
-12. Export the final merged localization table by default, unless the user explicitly asks for only new or changed strings.
-13. Generate `strings.csv`, `strings.json`, and update one Markdown report with a concise timestamped run section, changelog, review items, and report-only strings.
+2. Determine whether this is extract-only. If the user asks to extract strings without translation, use `--extract-only`, skip target-language confirmation, and export only `key` plus the source-language column.
+3. Determine target languages from the existing file or rules file only when translation output is needed. If no target languages are discoverable, ask the user which languages are needed before translating or exporting translated files.
+4. Extract text nodes from Figma with MCP. Scope priority is selected nodes first, then current page, then all pages only when explicitly requested.
+5. Infer the source language from extracted strings.
+6. Load optional localization rules, glossary, and translation memory.
+7. Normalize source strings and detect placeholders.
+8. Compare with any existing CSV or JSON string file.
+9. Generate deterministic, human-readable keys from frame/context, UI role, and content.
+10. Classify entries as `new`, `existing`, `changed`, `duplicate`, or `conflict`.
+11. Generate draft translations for missing target-language values only after target languages are confirmed and only when not in extract-only mode, then pass them to the processor with `--translations`.
+12. Reuse exact translation memory matches, apply full-string glossary matches, validate generated translations, and flag fuzzy matches for review.
+13. Export the final merged localization table by default, unless the user explicitly asks for only new or changed strings.
+14. Generate `strings.csv`, `strings.json`, and update one Markdown report with a concise timestamped run section, changelog, review items, and report-only strings.
 
 ## Figma Extraction
 
@@ -112,7 +113,9 @@ The script accepts extracted records as either a JSON array or an object with `s
 
 `extracted.json` and generated translation JSON are internal handoff/debug files. Do not keep them as user-facing deliverables unless the user explicitly asks for machine-readable audit inputs.
 
-If `--target-languages` is omitted, the processor tries `target_languages` from the rules file and then target-language columns from the existing localization file. If no target languages are found, it exits with a clear error so the agent can ask the user.
+For extract-only/no-translation output, pass `--extract-only`. The processor writes `strings.csv`, `strings.json`, and `localization_report.md` with only `key` plus the source-language column, such as `key,zh` or `key,en`. Do not generate or ask for target translations in this mode.
+
+If `--target-languages` is omitted outside extract-only mode, the processor tries `target_languages` from the rules file and then target-language columns from the existing localization file. If no target languages are found, it exits with a clear error so the agent can ask the user.
 
 If `--source-language` is omitted, the processor infers it from extracted strings and writes the inferred value to reports.
 
@@ -123,6 +126,8 @@ If `--report-md` is omitted, the processor writes to `localization_report.md` be
 Use `--export-mode advanced` only when the user explicitly wants metadata in the exported string file. Production export mode is the default.
 
 Production CSV/JSON must contain only `key`, the source-language column such as `en` or `zh`, and target-language columns. Do not add Figma metadata, review flags, non-translatable flags, numeric-only rows, symbol-only rows, node IDs, hashes, run IDs, or version columns to production exports.
+
+In extract-only mode, production CSV/JSON must contain only `key` and the source-language column.
 
 The Markdown report should stay concise and focus on data needed for review:
 
@@ -496,6 +501,7 @@ Placeholder status values:
 Before final delivery:
 
 - Confirm every exported production row has `key`, the source-language column, and target-language columns.
+- In extract-only mode, confirm every exported production row has only `key` and the source-language column.
 - Check duplicate and conflict counts.
 - Check `rule_conflicts`, `tm_status`, `needs_review`, and `placeholder_status`.
 - Confirm production CSV/JSON contains no Figma metadata unless `--export-mode advanced` was requested.

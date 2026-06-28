@@ -14,7 +14,7 @@ from difflib import SequenceMatcher
 from pathlib import Path
 from typing import Any
 
-PROCESSOR_VERSION = "0.4.0"
+PROCESSOR_VERSION = "0.5.0"
 
 PLACEHOLDER_RE = re.compile(
     r"(\{\{[^{}]+\}\}|\$\{[^{}]+\}|\{[^{}]+\}|%[@dfs]|[$][A-Za-z_][A-Za-z0-9_]*|"
@@ -1594,7 +1594,7 @@ def write_report_markdown(path: Path, report: dict[str, Any], changelog: dict[st
         "",
         f"- Figma file: {summary['figma_file'] or ''}",
         f"- Page / scope: {summary['page'] or ''} / {summary['scope'] or ''}",
-        f"- Languages: {summary['source_language']} -> {', '.join(summary['target_languages'])}",
+        f"- Languages: {summary['source_language']} -> {', '.join(summary['target_languages']) or 'none (extract only)'}",
         f"- Scanned / unique / exported: {summary['text_layers_scanned']} / {summary['unique_strings']} / {summary.get('production_rows', 0)}",
         f"- Level: {impact['level']}",
         "",
@@ -2075,9 +2075,14 @@ def main() -> int:
     parser.add_argument("--export-mode", choices=["production", "advanced"], default="production")
     parser.add_argument("--source-language", default="auto")
     parser.add_argument("--target-languages", default="", help="Comma-separated language columns")
+    parser.add_argument(
+        "--extract-only",
+        action="store_true",
+        help="Export localization-ready source strings only. Does not require or write target-language columns.",
+    )
     parser.add_argument("--dedupe-mode", choices=["global", "context-aware"], default="context-aware")
     parser.add_argument("--key-prefix", default="")
-    parser.add_argument("--rules", type=Path, help="Localization rules JSON or CSV")
+    parser.add_argument("--rules", type=Path, help="Localization rules Markdown, CSV, or JSON")
     parser.add_argument("--translations", type=Path, help="Generated translations CSV or JSON")
     parser.add_argument("--report-json", type=Path, help="Optional machine-readable JSON report output")
     parser.add_argument("--report-md", type=Path, help="Optional Markdown report output")
@@ -2112,13 +2117,15 @@ def main() -> int:
     existing_by_key, existing_by_source, existing_rows = load_existing(args.existing, source_language)
     rule_languages = rules.get("target_languages") if isinstance(rules.get("target_languages"), list) else []
     target_languages = [item.strip() for item in args.target_languages.split(",") if item.strip()]
-    if not target_languages:
+    if args.extract_only:
+        target_languages = []
+    if not target_languages and not args.extract_only:
         target_languages = [str(item) for item in rule_languages if str(item).strip()]
-    if not target_languages:
+    if not target_languages and not args.extract_only:
         target_languages = infer_target_languages(existing_rows)
-    if not target_languages:
+    if not target_languages and not args.extract_only:
         raise SystemExit(
-            "No target languages found. Provide --target-languages, add target language columns to the existing localization file, or set target_languages in the rules file."
+            "No target languages found. Provide --target-languages, add target language columns to the existing localization file, set target_languages in the rules file, or pass --extract-only."
         )
     translations = load_translations(args.translations)
     entries, summary = build_entries(
