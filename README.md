@@ -1,53 +1,166 @@
 # LocaleFlow
 
-LocaleFlow is a Figma agent skill for extracting UI strings from Figma pages or selected frames, comparing them with existing string files, generating stable localization keys and translations, and exporting clean production-ready CSV or JSON.
+LocaleFlow is a Codex skill for extracting localization-ready UI strings from Figma, generating stable keys and translations, and exporting clean production files for product localization.
 
+The default workflow is intentionally small:
 
-## Skill
+```text
+strings.csv
+strings.json
+localization_report.md
+```
 
-- Skill folder: `localeflow/`
-- Main instructions: `localeflow/SKILL.md`
-- MCP tools: `use_figma`
-- License: MIT
+`strings.csv` and `strings.json` contain the same production table content. The Markdown report contains the changelog, review items, conflicts, and report-only strings.
 
-## MVP
+## What It Does
 
-- Extract visible text from selected Figma frames or the current page.
-- Normalize UI strings.
-- Compare against existing CSV or JSON string files.
-- Deduplicate exact repeats globally or by context.
-- Generate deterministic localization keys.
-- Export clean production CSV or JSON, with metadata kept in report and context-map files.
+- Extracts visible Figma text from selected nodes first, then the current page.
+- Excludes hidden layers by default.
+- Applies Figma visual text casing before export.
+- Sorts strings by visual order: top-to-bottom, then left-to-right.
+- Generates deterministic semantic localization keys.
+- Keeps numeric-only and symbol-only strings out of production exports.
+- Replaces numbers inside translatable sentences with placeholders such as `{number_1}`.
+- Supports `nt_` text-layer names as non-translatable.
+- Compares repeated exports against an existing `strings.csv` or `strings.json`.
+- Produces one human-readable report with changelog and review details.
 
-## Example
+## Output Shape
+
+Production CSV contains only:
+
+```csv
+key,zh,en,ja
+common.button.buy_now,立即购买,Buy Now,今すぐ購入
+```
+
+Production JSON mirrors the same rows:
+
+```json
+[
+  {
+    "key": "common.button.buy_now",
+    "zh": "立即购买",
+    "en": "Buy Now",
+    "ja": "今すぐ購入"
+  }
+]
+```
+
+No Figma node IDs, paths, run IDs, hashes, review flags, or version columns are included in production CSV/JSON.
+
+## Basic Usage
 
 ```bash
 python3 localeflow/scripts/process_figma_strings.py \
-  --input localeflow/examples/extracted.json \
-  --existing localeflow/examples/existing.csv \
-  --format both \
-  --output /tmp/strings \
-  --target-languages zh-Hans,ja,fr \
+  --input extracted.json \
+  --output strings \
+  --target-languages en,ja \
+  --translations generated-translations.json \
   --dedupe-mode context-aware \
-  --rules localeflow/examples/localization-rules.json \
-  --translations localeflow/examples/generated-translations.json \
-  --report-md /tmp/localization_report.md \
-  --report-json /tmp/localization_report.json \
-  --context-map /tmp/context_map.json \
+  --non-translatable-prefix nt_ \
+  --report-md localization_report.md \
   --figma-file "Example App" \
   --page "Account" \
   --scope "Selected frames"
 ```
 
-The optional rules file supports do-not-translate terms, approved glossary terms, exact and fuzzy translation memory, custom placeholder patterns, and UI-role style notes.
+By default this writes:
 
-LocaleFlow infers source language from extracted Figma strings by default. Target languages should come from `--target-languages`, the rules file, or existing localization file columns; if none are available, ask the user which languages to translate into before running.
+```text
+strings.csv
+strings.json
+localization_report.md
+```
 
-By default the production exports are clean: `strings.csv` contains only `key`, `source`, and target-language columns, while `strings.json` uses a production key-value localization shape. Use `--export-mode advanced` when you need Figma metadata and review columns in the export itself.
+The CLI response is compact and includes only output paths plus actionable counts.
 
-The report files summarize extraction impact, status counts, glossary and translation memory matches, review severity, and frames with the most new or problematic strings. The context map links localization keys back to Figma node IDs and paths.
+## Repeated Exports
 
-See `localeflow/examples/expected-strings.csv` and `localeflow/examples/expected-strings.json` for the expected clean production export shape.
+For later Figma exports, pass the previous production file with `--existing`:
+
+```bash
+python3 localeflow/scripts/process_figma_strings.py \
+  --input extracted.json \
+  --existing strings.csv \
+  --output strings \
+  --target-languages en,ja \
+  --translations generated-translations.json \
+  --report-md localization_report.md
+```
+
+The report changelog classifies production rows as added, changed, existing, removed, or report-only. Existing `key,<source_language>,...` files are supported, including source columns such as `en`, `zh`, or `source`.
+
+## Translation Rules
+
+Optional rules files can define:
+
+- target languages
+- do-not-translate terms
+- approved glossary entries
+- translation memory
+- custom placeholder patterns
+- UI-role or language-specific style rules
+
+Rules are applied in this order:
+
+1. Preserve placeholders exactly.
+2. Preserve do-not-translate terms.
+3. Reuse exact translation memory matches.
+4. Apply approved glossary terms.
+5. Apply UI-role and target-language style rules.
+6. Flag fuzzy matches, missing translations, placeholder errors, and conflicts for review.
+
+## Numeric And Non-Translatable Strings
+
+Numeric-only or symbol-only values are not translated and are excluded from production exports:
+
+```text
+999
+¥699
+9:41
+50%
+¥
+```
+
+Numbers inside sentence-like strings are converted to placeholders before translation:
+
+```text
+会员最多可同时持有{number_1} 张期限型卡
+```
+
+Text layers named with the `nt_` prefix are extracted for reporting but are excluded from production exports by default.
+
+## Report
+
+`localization_report.md` is the only default report. It includes:
+
+- extraction counts
+- changelog counts and rows
+- report-only strings
+- duplicate and conflict counts
+- placeholder errors
+- missing translations
+- inferred do-not-translate terms
+- frames with the most new or problematic strings
+- suggested next actions
+
+Machine-readable files are opt-in only:
+
+```bash
+--report-json localization_report.json
+--context-map context_map.json
+--changelog-json localization_changelog.json
+--changelog-md localization_changelog.md
+```
+
+Use these only for automation, debugging, or deeper Figma traceability.
+
+## Skill Files
+
+- Skill instructions: `localeflow/SKILL.md`
+- Figma extraction reference: `localeflow/references/figma-extraction.md`
+- Processor: `localeflow/scripts/process_figma_strings.py`
 
 ## Community Listing Draft
 
@@ -57,4 +170,4 @@ See `localeflow/examples/expected-strings.csv` and `localeflow/examples/expected
 
 [SOURCE CODE](https://github.com/YOUR_ORG/LocaleFlow) · [MIT](https://github.com/YOUR_ORG/LocaleFlow/blob/main/LICENSE) **MCP Tools:** `use_figma`
 
-Extracts visible UI strings from the current Figma page or selected frames, compares them with existing CSV/JSON string files, removes duplicates, generates translations and stable localization keys, exports clean production CSV/JSON, and writes separate localization reports plus a Figma context map.
+Extracts visible UI strings from Figma, generates stable semantic localization keys, preserves placeholders and non-translatable content, exports matching production CSV/JSON files, and writes one human-readable localization report with changelog and review guidance.

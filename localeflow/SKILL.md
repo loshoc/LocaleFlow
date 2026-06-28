@@ -1,26 +1,30 @@
 ---
 name: localeflow
-description: Extract localization-ready UI strings from Figma files. Use when a user asks to collect text from the current Figma page, selected frames, sections, components, or instances; compare extracted copy with existing CSV or JSON string files; deduplicate UI copy; generate stable localization keys; classify strings as new, existing, changed, duplicate, or conflict; generate translations; and export clean production-ready CSV or JSON plus report and context-map files for product localization workflows.
+description: Extract localization-ready UI strings from Figma files. Use when a user asks to collect text from the current Figma page, selected frames, sections, components, or instances; compare extracted copy with existing CSV or JSON string files; deduplicate UI copy; generate stable localization keys; classify strings as new, existing, changed, duplicate, or conflict; generate translations; and export clean production-ready CSV/JSON plus one human-readable report for product localization workflows.
 ---
 
 # LocaleFlow
 
-LocaleFlow turns visible Figma UI text into structured localization entries. It combines Figma MCP extraction with deterministic post-processing so designers and developers get stable keys, generated translations, clean production CSV/JSON, and separate review/context files.
+LocaleFlow turns visible Figma UI text into structured localization entries. It combines Figma MCP extraction with deterministic post-processing so designers and developers get stable keys, generated translations, clean production CSV/JSON, and one human-readable report.
 
-Core principle: production localization files stay clean. Put only `key`, `source`, and target-language values in production CSV/JSON. Put Figma metadata, review status, conflicts, glossary matches, duplicate analysis, and node references into report and context-map files.
+Core principle: production localization files stay clean. Put only `key`, the source-language column, and target-language values in production CSV/JSON. CSV and JSON should share the same table content. The source column should use the language code such as `en` or `zh` when the source language is known, not the generic label `source`.
+
+Output principle: default to exactly three user-facing files: `strings.csv`, `strings.json`, and `localization_report.md`. The report should include the changelog, review items, and report-only strings. Do not create separate context-map, changelog, or report JSON files unless the user explicitly asks for machine-readable/debug artifacts.
 
 ## Required Inputs
 
-Ask for missing inputs only when they are necessary to proceed.
+Ask for missing inputs before taking translation action when they affect output shape or language coverage.
 
 - Figma target: current page, selected nodes, or a specific Figma node URL.
-- Existing localization file: optional CSV or JSON path/content. Before starting translation, identify whether the user already has one.
-- Output format: CSV, JSON, or both. Default to CSV when the user does not specify.
+- Existing localization file: optional CSV or JSON path/content. Before extracting or translating, ask whether the user has one unless they already provided a file, explicitly said there is no existing file, or asked for extraction only.
+- Output format: CSV, JSON, or both. Default to both when the user does not specify.
 - Source language: infer from extracted Figma strings by default. Only override when the user explicitly provides a source language.
-- Target languages: infer from existing localization file columns or rules file `target_languages`. If neither exists, ask: "Which languages does this need to be translated into?"
+- Target languages: infer from existing localization file columns or rules file `target_languages`. If no existing file or rules file supplies target languages, ask the user to confirm the target languages before generating translations or final localization files.
 - Dedupe mode: `context-aware` by default, or `global`.
 - Hidden layers: exclude by default unless requested.
 - Components and instances: include both by default, recording node type context.
+- Non-translatable prefix: default `nt_`. Text layers with this prefix are extracted and reported as non-translatable.
+- Non-translatable export mode: default `exclude`. Text layers marked `nt_`, numeric-only strings, and symbol-only strings are listed in the report but omitted from production CSV/JSON unless the user explicitly asks to preserve `nt_` strings.
 - Key prefix: optional app/product namespace such as `app`, `checkout`, or `jbl_one`.
 - Preferred key naming style: optional; default is dot-separated semantic keys.
 - Translation rules or glossary: optional; preserve placeholders exactly.
@@ -28,19 +32,19 @@ Ask for missing inputs only when they are necessary to proceed.
 
 ## Workflow
 
-1. Identify whether the user has an existing localization file.
-2. Determine target languages from the existing file or rules file. If no target languages are discoverable, ask the user which languages are needed before translating.
-3. Extract text nodes from Figma with MCP.
+1. Identify whether the user has an existing localization file. If this is unknown, ask first. If the user confirms there is no existing file, create a new localization output from the extracted Figma strings.
+2. Determine target languages from the existing file or rules file. If no target languages are discoverable, ask the user which languages are needed before translating or exporting.
+3. Extract text nodes from Figma with MCP. Scope priority is selected nodes first, then current page, then all pages only when explicitly requested.
 4. Infer the source language from extracted strings.
 5. Load optional localization rules, glossary, and translation memory.
 6. Normalize source strings and detect placeholders.
 7. Compare with any existing CSV or JSON string file.
 8. Generate deterministic, human-readable keys from frame/context, UI role, and content.
 9. Classify entries as `new`, `existing`, `changed`, `duplicate`, or `conflict`.
-10. Generate draft translations for missing target-language values using the current agent/model, then pass them to the processor with `--translations`.
+10. Generate draft translations for missing target-language values only after target languages are confirmed, then pass them to the processor with `--translations`.
 11. Reuse exact translation memory matches, apply full-string glossary matches, validate generated translations, and flag fuzzy matches for review.
 12. Export the final merged localization table by default, unless the user explicitly asks for only new or changed strings.
-13. Generate Markdown/JSON reports and `context_map.json` for impact, review items, and traceability.
+13. Generate `strings.csv`, `strings.json`, and one Markdown report with changelog, review items, and report-only strings.
 
 ## Figma Extraction
 
@@ -51,6 +55,8 @@ For extraction code and expected raw JSON shape, read `references/figma-extracti
 Return one raw record per text node with:
 
 - `raw_text`
+- `original_text`
+- `text_case`
 - `node_id`
 - `node_name`
 - `page`
@@ -60,10 +66,24 @@ Return one raw record per text node with:
 - `ui_role`
 - `visible`
 - `node_kind`
+- `x`
+- `y`
+- `absolute_x`
+- `absolute_y`
+- `width`
+- `height`
+- `non_translatable`
+- `non_translatable_reason`
 - `inside_instance`
 - `inside_component`
 
 Ignore hidden text by default. If the user asks to include hidden text, include it and set `visible: false`.
+
+Apply Figma text casing before writing `raw_text`: if a text node is visually uppercase, lowercase, or title case through Figma text-case styling, export the displayed string. Keep `original_text` for traceability.
+
+Sort extracted records within each page/frame by visual order: top-to-bottom, then left-to-right. This keeps CSV diffs and reviewer flow stable.
+
+Treat text node names beginning with `nt_` as non-translatable. These strings stay in the report; production exports omit them by default or preserve them unchanged only when `--non-translatable-mode preserve` is used.
 
 ## Post-Processing
 
@@ -75,16 +95,15 @@ Example:
 python3 localeflow/scripts/process_figma_strings.py \
   --input extracted.json \
   --existing strings.csv \
-  --format both \
   --output strings \
   --target-languages zh-Hans,ja,fr \
   --dedupe-mode context-aware \
   --key-prefix app \
   --rules localization-rules.json \
   --translations generated-translations.json \
+  --non-translatable-prefix nt_ \
+  --non-translatable-mode exclude \
   --report-md localization_report.md \
-  --report-json localization_report.json \
-  --context-map context_map.json \
   --figma-file "Example App" \
   --page "Account" \
   --scope "Selected frames"
@@ -96,7 +115,21 @@ If `--target-languages` is omitted, the processor tries `target_languages` from 
 
 If `--source-language` is omitted, the processor infers it from extracted strings and writes the inferred value to reports.
 
+The processor defaults to `--format both`, which writes a CSV and JSON version of the same production table. Use `--format csv` or `--format json` only when the user asks for a single file.
+
 Use `--export-mode advanced` only when the user explicitly wants metadata in the exported string file. Production export mode is the default.
+
+Production CSV/JSON must contain only `key`, the source-language column such as `en` or `zh`, and target-language columns. Do not add Figma metadata, review flags, non-translatable flags, numeric-only rows, symbol-only rows, node IDs, hashes, run IDs, or version columns to production exports.
+
+The Markdown report should focus on human decisions:
+
+- overall counts
+- changelog counts and rows for added, changed, removed, and report-only strings
+- conflicts, missing translations, placeholder errors, and review items
+- inferred do-not-translate terms
+- screens with the most new or problematic strings
+
+For repeated exports, prefer passing the previous `strings.csv` or `strings.json` with `--existing`. The changelog can derive added, changed, existing, and removed keys from the existing production file. If a team needs deeper automation, `--previous-context-map`, `--context-map`, `--report-json`, `--changelog-json`, and `--changelog-md` remain available as explicit opt-in outputs.
 
 ## Localization Rules File
 
@@ -177,7 +210,7 @@ Likely do-not-translate terms include:
 - filenames, URLs, email addresses, protocol names, model names, and version-like tokens
 - partner/service names or proper nouns that are not ordinary UI words
 
-Do not ask the user to confirm each inferred term one by one. Preserve inferred terms during translation, then list them in `localization_report.md` and `localization_report.json` so the user can either go ahead with LocaleFlow's decision or ask to translate specific terms.
+Do not ask the user to confirm each inferred term one by one. Preserve inferred terms during translation, then list them in `localization_report.md` so the user can either go ahead with LocaleFlow's decision or ask to translate specific terms.
 
 If a user explicitly says a term should be translated, treat that instruction as an override for that run and do not preserve the term.
 
@@ -206,10 +239,12 @@ Examples:
 - Collapse repeated spaces and tabs.
 - Collapse line breaks to spaces unless the line break appears semantically meaningful.
 - Preserve placeholders exactly in exported source text.
+- Do not translate numeric-only strings or strings made only of numbers plus numeric symbols, punctuation, percentages, or currency signs. Keep them in the report but omit them from production CSV/JSON.
+- When a number appears inside otherwise translatable copy, replace the number with a stable placeholder such as `{number_1}` before translation and require the same placeholder in every target-language value.
 - For key generation, replace dynamic values with stable placeholder concepts when obvious.
 - Treat URLs, email addresses, filenames, trademarks, and product model names as strings that may need translator notes.
 
-Placeholder patterns include `{name}`, `{{count}}`, `%@`, `%d`, `%s`, `$price`, `${price}`, `{device_name}`, `<bold>text</bold>`, `[link]`, numbers, dates, percentages, and currency values. Add custom patterns in the rules file when a product uses project-specific placeholder syntax.
+Placeholder patterns include `{name}`, `{{count}}`, `%@`, `%d`, `%s`, `$price`, `${price}`, `{device_name}`, `<bold>text</bold>`, `[link]`, and generated number placeholders such as `{number_1}`. Add custom patterns in the rules file when a product uses project-specific placeholder syntax.
 
 ## Dedupe Modes
 
@@ -238,6 +273,8 @@ Before production export, generate translations for each missing target-language
 - glossary matches
 - style rules
 - placeholders that must be preserved exactly
+
+Before translating, convert numbers inside sentence-like source copy to generated placeholders, for example `有效期为 30 天` becomes `有效期为 {number_1} 天`. Translate around the placeholder and preserve `{number_1}` exactly. Numeric-only values such as `999`, `¥699`, `9:41`, or `50%` are not translated.
 
 Translation-generation rules:
 
@@ -310,12 +347,12 @@ key,source,zh-Hans,ja,fr,status,page,frame,node_id,ui_role,figma_path,notes
 
 ## Extraction Report
 
-Generate a report after each extraction/comparison when the user needs review context, CI summaries, or stakeholder-readable impact notes.
+Generate one Markdown report after each extraction/comparison.
 
 Supported report outputs:
 
 - Markdown: `--report-md localization_report.md`
-- JSON: `--report-json localization_report.json`
+- Optional machine-readable JSON: `--report-json localization_report.json`
 
 Recommended output set:
 
@@ -323,8 +360,6 @@ Recommended output set:
 strings.csv
 strings.json
 localization_report.md
-localization_report.json
-context_map.json
 ```
 
 The report should answer:
@@ -338,7 +373,7 @@ The report should answer:
 - whether placeholder errors or localization rule conflicts exist
 - which frames contain the most new or problematic strings
 
-Each exported string should include `report_tags`, such as:
+Internally, each processed string can include `report_tags`, such as:
 
 ```json
 ["new", "glossary_match", "tm_fuzzy_match", "needs_review", "auto_key_generated"]
@@ -356,9 +391,9 @@ Change impact levels:
 - `medium_impact`: multiple new strings or fuzzy matches, but no blocking errors.
 - `high_impact`: key conflicts, placeholder errors, rule conflicts, or many new strings.
 
-## Context Map
+## Optional Context Map
 
-Always generate `context_map.json` for traceability and future Figma write-back. Map each localization key to source text, Figma node IDs, Figma paths, page, frame, UI role, status, glossary matches, do-not-translate matches, and review state.
+Generate `context_map.json` only when explicitly requested for automation, debugging, or future Figma write-back. It can map each localization key to source text, Figma node IDs, Figma paths, page, frame, UI role, status, glossary matches, do-not-translate matches, and review state.
 
 Example:
 
@@ -405,11 +440,11 @@ Placeholder status values:
 
 Before final delivery:
 
-- Confirm every exported row has `key`, `source`, `status`, and Figma context.
+- Confirm every exported production row has `key`, the source-language column, and target-language columns.
 - Check duplicate and conflict counts.
 - Check `rule_conflicts`, `tm_status`, `needs_review`, and `placeholder_status`.
 - Confirm production CSV/JSON contains no Figma metadata unless `--export-mode advanced` was requested.
-- Confirm `localization_report.md`, `localization_report.json`, and `context_map.json` were generated.
+- Confirm `strings.csv`, `strings.json`, and `localization_report.md` were generated by default.
 - Verify generated keys are deterministic across repeated runs.
 - Confirm placeholder tokens in `source` are unchanged.
 - Show the output path and a short classification summary.
