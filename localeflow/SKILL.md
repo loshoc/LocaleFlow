@@ -134,7 +134,32 @@ For repeated exports, prefer passing the previous `strings.csv` or `strings.json
 
 ## Localization Rules File
 
-Accept a user-provided rules file with `--rules`. Prefer JSON for full configuration; accept CSV for do-not-translate terms, glossary entries, and translation memory.
+Accept a user-provided rules file with `--rules`. Prefer CSV for normal user-facing vocabulary and style configuration because it is easy to edit in a spreadsheet. Use JSON only when the user needs advanced placeholder patterns or deeply structured configuration.
+
+Recommended CSV shape:
+
+```csv
+type,source,target_language,translation,context,notes
+target_language,en,,,,Export English
+target_language,ja,,,,Export Japanese
+do_not_translate,API,,,Technical term,Keep unchanged
+do_not_translate,小张,,,Person name,Keep unchanged
+glossary,会员卡,en,Membership Card,Membership product,Approved UI term
+glossary,会员卡,ja,会員カード,Membership product,Approved UI term
+translation_memory,立即购买,en,Buy Now,Primary CTA,Approved full string
+style_rule,global,,,,Use concise mobile UI wording.
+style_rule,button,,,,Keep button labels short.
+style_rule,ja,,,,Use natural Japanese UI wording.
+style_rule,ja.button,,,,Prefer concise Japanese button labels.
+```
+
+CSV row types:
+
+- `target_language`: add a target language. The language code can be in `source` or `target_language`.
+- `do_not_translate`: preserve `source` exactly in translations.
+- `glossary`: apply `translation` as the approved term for `source` in `target_language`.
+- `translation_memory`: reuse `translation` for a full exact source string in `target_language`.
+- `style_rule`: add a translation instruction from `notes`, scoped by `source`, such as `global`, `button`, `ja`, or `ja.button`.
 
 JSON shape:
 
@@ -178,7 +203,7 @@ JSON shape:
 }
 ```
 
-CSV rules columns:
+Legacy CSV rules columns:
 
 ```csv
 type,source,target_language,translation,context,notes

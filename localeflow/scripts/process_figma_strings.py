@@ -14,7 +14,7 @@ from difflib import SequenceMatcher
 from pathlib import Path
 from typing import Any
 
-PROCESSOR_VERSION = "0.2.0"
+PROCESSOR_VERSION = "0.3.0"
 
 PLACEHOLDER_RE = re.compile(
     r"(\{\{[^{}]+\}\}|\$\{[^{}]+\}|\{[^{}]+\}|%[@dfs]|[$][A-Za-z_][A-Za-z0-9_]*|"
@@ -385,6 +385,19 @@ def load_rules(path: Path | None) -> dict[str, Any]:
             for row in csv.DictReader(handle):
                 row_type = (row.get("type") or "").strip()
                 source = (row.get("source") or "").strip()
+                target_language = (row.get("target_language") or "").strip()
+                notes = (row.get("notes") or "").strip()
+                if row_type in {"target_language", "language"}:
+                    language = target_language or source
+                    if language and language not in rules["target_languages"]:
+                        rules["target_languages"].append(language)
+                    continue
+                if row_type == "style_rule":
+                    scope = source or "global"
+                    rule = notes or (row.get("translation") or "").strip()
+                    if rule:
+                        rules["style_rules"].setdefault(scope, []).append(rule)
+                    continue
                 if not source:
                     continue
                 if row_type == "do_not_translate":
@@ -393,20 +406,20 @@ def load_rules(path: Path | None) -> dict[str, Any]:
                     rules["glossary"].append(
                         {
                             "source": source,
-                            "target_language": (row.get("target_language") or "").strip(),
+                            "target_language": target_language,
                             "translation": (row.get("translation") or "").strip(),
                             "context": (row.get("context") or "").strip(),
-                            "notes": (row.get("notes") or "").strip(),
+                            "notes": notes,
                         }
                     )
                 elif row_type == "translation_memory":
                     rules["translation_memory"].append(
                         {
                             "source": source,
-                            "target_language": (row.get("target_language") or "").strip(),
+                            "target_language": target_language,
                             "translation": (row.get("translation") or "").strip(),
                             "context": (row.get("context") or "").strip(),
-                            "notes": (row.get("notes") or "").strip(),
+                            "notes": notes,
                         }
                     )
         rules["rule_conflicts"] = detect_rule_conflicts(rules)

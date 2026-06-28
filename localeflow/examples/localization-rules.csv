@@ -1,0 +1,13 @@
+type,source,target_language,translation,context,notes
+target_language,en,,,,Export English
+target_language,ja,,,,Export Japanese
+do_not_translate,API,,,Technical term,Keep unchanged
+do_not_translate,小张,,,Person name,Keep unchanged
+glossary,会员卡,en,Membership Card,Membership product,Approved UI term
+glossary,会员卡,ja,会員カード,Membership product,Approved UI term
+translation_memory,立即购买,en,Buy Now,Primary CTA,Approved full string
+translation_memory,立即购买,ja,今すぐ購入,Primary CTA,Approved full string
+style_rule,global,,,,Use concise mobile UI wording.
+style_rule,button,,,,Keep button labels short.
+style_rule,ja,,,,Use natural Japanese UI wording.
+style_rule,ja.button,,,,Prefer concise Japanese button labels.

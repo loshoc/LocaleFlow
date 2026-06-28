@@ -93,6 +93,43 @@ The report changelog classifies production rows as added, changed, existing, rem
 
 ## Translation Rules
 
+For the simplest workflow, keep one spreadsheet-style CSV beside your exported files:
+
+```text
+localization-rules.csv
+```
+
+Then pass it to the processor:
+
+```bash
+--rules localization-rules.csv
+```
+
+Use these columns:
+
+```csv
+type,source,target_language,translation,context,notes
+target_language,en,,,,Export English
+target_language,ja,,,,Export Japanese
+do_not_translate,API,,,Technical term,Keep unchanged
+do_not_translate,小张,,,Person name,Keep unchanged
+glossary,会员卡,en,Membership Card,Membership product,Approved UI term
+glossary,会员卡,ja,会員カード,Membership product,Approved UI term
+translation_memory,立即购买,en,Buy Now,Primary CTA,Approved full string
+style_rule,button,,,,Keep button labels short.
+style_rule,ja,,,,Use natural Japanese UI wording.
+```
+
+Row types:
+
+- `target_language`: target languages to export.
+- `do_not_translate`: vocabulary that must stay unchanged, such as brand names, person names, acronyms, product names, IDs, URLs, or API terms.
+- `glossary`: approved translation for a term or short phrase.
+- `translation_memory`: approved translation for a full source string.
+- `style_rule`: plain-language instruction for translation style. Use `global`, `button`, `ja`, or `ja.button` in `source` to control where it applies.
+
+JSON rules are still supported for advanced configuration, but CSV is the recommended format for normal vocabulary and style rules.
+
 Optional rules files can define:
 
 - target languages
