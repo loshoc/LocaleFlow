@@ -30,3 +30,8 @@
 | button | Keep button labels short. |
 | ja | Use natural Japanese UI wording. |
 | ja.button | Prefer concise Japanese button labels. |
+
+## Figma Layer Key Write Back
+
+- enabled: true
+- layer_name_prefix: i18n:

@@ -25,6 +25,7 @@ Restart your agent after installing so the new skill is loaded.
 ## What It Does
 
 - Extracts visible Figma text from selected nodes first, then the current page.
+- Filters mixed spec files with a layered UI-surface strategy: selected frames, include/exclude markers, then frame size plus page/frame names.
 - Excludes hidden layers by default.
 - Applies Figma visual text casing before export.
 - Sorts strings by visual order: top-to-bottom, then left-to-right.
@@ -33,6 +34,8 @@ Restart your agent after installing so the new skill is loaded.
 - Replaces numbers inside translatable sentences with placeholders such as `{number_1}`.
 - Supports `nt_` text-layer names as non-translatable.
 - Compares repeated exports against an existing `strings.csv` or `strings.json`.
+- Optionally writes generated keys back to Figma text layer names through a node-to-key manifest.
+- Persists the first-run Figma write-back preference in localization rules so later exports follow the same setting.
 - Produces one human-readable report with changelog and review details.
 
 ## Output Shape
@@ -123,6 +126,45 @@ python3 localeflow/scripts/process_figma_strings.py \
 
 The report changelog classifies production rows as added, changed, existing, removed, or report-only. Existing `key,<source_language>,...` files are supported, including source columns such as `en`, `zh`, or `source`.
 
+If text layers have been renamed to localization keys, LocaleFlow reuses those keys before generating new ones. This lets changed source copy remain attached to the same key and appear as `changed`.
+
+## UI Specs And Layer Keys
+
+When a Figma file contains UI screens plus descriptions, annotations, or full specs, enable the layered UI filter in `localeflow/references/figma-extraction.md` or select only the product frames before extraction. The filter trusts explicit selection first, honors include/exclude markers, then falls back to frame dimensions and names such as screen, page, modal, dialog, mobile, desktop, and app.
+
+Useful markers:
+
+```text
+lf_include, i18n_include, locale_include, ui_page, ui_screen
+lf_exclude, i18n_exclude, locale_exclude, no_i18n, no_localize
+```
+
+The extractor returns `skipped_frames` when filtering is active so filtered-out spec/notes/docs frames can be reviewed.
+
+To write generated keys back to Figma text layer names, export a manifest:
+
+```bash
+python3 localeflow/scripts/process_figma_strings.py \
+  --input extracted.json \
+  --existing strings.csv \
+  --output strings \
+  --extract-only \
+  --layer-key-manifest layer-key-manifest.json
+```
+
+Then use the Figma Plugin API snippet in `localeflow/references/figma-extraction.md` to rename each text layer from `node_id` to `rename_to`.
+
+On the first run for a project with no existing strings file, ask the team whether they want Figma layer key write-back. Store the answer in `localization-rules.md` so future runs follow the same setting:
+
+```md
+## Figma Layer Key Write Back
+
+- enabled: true
+- layer_name_prefix: i18n:
+```
+
+Use `enabled: false` if the team wants to keep layer names unchanged. When rules enable write-back, the processor writes `layer-key-manifest.json` beside the production output even if `--layer-key-manifest` is not passed.
+
 ## Translation Rules
 
 For the simplest workflow, keep one Markdown file beside your exported files:
@@ -186,6 +228,7 @@ CSV and JSON rules are still supported, but Markdown is the recommended format f
 Optional rules files can define:
 
 - target languages
+- Figma layer key write-back preference
 - do-not-translate terms
 - approved glossary entries
 - translation memory

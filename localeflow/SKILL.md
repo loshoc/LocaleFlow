@@ -15,7 +15,7 @@ Output principle: default to two production files plus one stable report: `strin
 
 Ask for missing inputs before taking translation action when they affect output shape or language coverage.
 
-- Figma target: current page, selected nodes, or a specific Figma node URL.
+- Figma target: current page, selected nodes, or a specific Figma node URL. Prefer selected UI frames when the file also contains specs or annotations.
 - Existing localization file: optional CSV or JSON path/content. Before extracting or translating, ask whether the user has one unless they already provided a file, explicitly said there is no existing file, or asked for extraction only.
 - Output format: CSV, JSON, or both. Default to both when the user does not specify.
 - Source language: infer from extracted Figma strings by default. Only override when the user explicitly provides a source language.
@@ -27,20 +27,24 @@ Ask for missing inputs before taking translation action when they affect output 
 - Non-translatable export mode: default `exclude`. Text layers marked `nt_`, numeric-only strings, and symbol-only strings are listed in the report but omitted from production CSV/JSON unless the user explicitly asks to preserve `nt_` strings.
 - Key prefix: optional app/product namespace such as `app`, `checkout`, or `product_one`.
 - Preferred key naming style: optional; default is dot-separated semantic keys.
+- Figma layer key write-back: optional for existing projects, but must be decided on a first run when there is no existing localization file or saved rules setting. Ask whether generated keys should be written back to Figma text layer names after review, then log the selection in the rules file so future runs follow it.
 - Translation rules or glossary: optional; preserve placeholders exactly.
 - Generated translations file: optional CSV or JSON when translations are generated before post-processing.
 
 ## Workflow
 
 1. Identify whether the user has an existing localization file. If this is unknown, ask first. If the user confirms there is no existing file, create a new localization output from the extracted Figma strings.
+   - If there is no existing localization file and no saved `figma_layer_key_write_back` setting in the rules file, ask whether to enable Figma layer key write-back after key review.
+   - Log the answer in the rules file, preferably `localization-rules.md`, so later runs do not ask again.
 2. Determine whether this is extract-only. If the user asks to extract strings without translation, use `--extract-only`, skip target-language confirmation, and export only `key` plus the source-language column.
 3. Determine target languages from the existing file or rules file only when translation output is needed. If no target languages are discoverable, ask the user which languages are needed before translating or exporting translated files.
-4. Extract text nodes from Figma with MCP. Scope priority is selected nodes first, then current page, then all pages only when explicitly requested.
+4. Extract text nodes from Figma with MCP. Scope priority is selected nodes first, then current page, then all pages only when explicitly requested. If the Figma file mixes UI screens with specs, notes, or descriptions, enable the layered UI filter from `references/figma-extraction.md`: selected nodes are trusted first, include/exclude name markers override heuristics, then frame size and page/frame name signals identify likely UI surfaces. Review `skipped_frames` when the filter is active.
 5. Infer the source language from extracted strings.
 6. Load optional localization rules, glossary, and translation memory.
 7. Normalize source strings and detect placeholders.
 8. Compare with any existing CSV or JSON string file.
 9. Generate deterministic, human-readable keys from frame/context, UI role, and content.
+   - If a text layer name already matches a key in the existing localization file, reuse that key before generating a new one. This lets updated copy in a previously keyed Figma layer classify as `changed`.
 10. Classify entries as `new`, `existing`, `changed`, `duplicate`, or `conflict`.
 11. Generate draft translations for missing target-language values only after target languages are confirmed and only when not in extract-only mode, then pass them to the processor with `--translations`.
 12. Reuse exact translation memory matches, apply full-string glossary matches, validate generated translations, and flag fuzzy matches for review.
@@ -86,6 +90,14 @@ Sort extracted records within each page/frame by visual order: top-to-bottom, th
 
 Treat text node names beginning with `nt_` as non-translatable. These strings stay in the report; production exports omit them by default or preserve them unchanged only when `--non-translatable-mode preserve` is used.
 
+When source files include product specs, annotations, or design descriptions alongside UI screens, do not extract every visible text node blindly. Use the layered UI filter in `references/figma-extraction.md`, or ask the user to select only the UI frames. The filter should:
+
+- trust explicit selection unless an ancestor has an exclude marker
+- include ancestors named with markers such as `lf_include`, `i18n_include`, `locale_include`, `ui_page`, or `ui_screen`
+- exclude ancestors named with markers such as `lf_exclude`, `i18n_exclude`, `locale_exclude`, `no_i18n`, or `no_localize`
+- fall back to UI-surface heuristics from screen-like dimensions and names such as screen, page, modal, dialog, sheet, mobile, desktop, app, checkout, login, profile, or account
+- return `skipped_frames` so users can review frames filtered out as specs, notes, descriptions, documentation, comments, or guidelines
+
 ## Post-Processing
 
 Use `scripts/process_figma_strings.py` whenever extracted records or existing string files need deterministic comparison, key generation, dedupe, or export.
@@ -120,6 +132,19 @@ If `--target-languages` is omitted outside extract-only mode, the processor trie
 If `--source-language` is omitted, the processor infers it from extracted strings and writes the inferred value to reports.
 
 The processor defaults to `--format both`, which writes a CSV and JSON version of the same production table. Use `--format csv` or `--format json` only when the user asks for a single file.
+
+For Figma key write-back, pass `--layer-key-manifest layer-key-manifest.json` or set `figma_layer_key_write_back` to enabled in the rules file. This writes a report/debug JSON file mapping each Figma text `node_id` to the generated or reused key plus a `rename_to` value. Use the manifest with the Figma Plugin API snippet in `references/figma-extraction.md` to rename text layers after reviewing keys. This manifest is opt-in and should not be treated as a production localization file.
+
+Recommended first-run rules entry:
+
+```md
+## Figma Layer Key Write Back
+
+- enabled: true
+- layer_name_prefix: i18n:
+```
+
+Use `enabled: false` when the team does not want LocaleFlow to prepare Figma text-layer renames. When the rules file has `enabled: true` and `--layer-key-manifest` is omitted, the processor writes `layer-key-manifest.json` beside the production output. CLI `--layer-name-prefix` overrides the rules-file prefix for that run.
 
 If `--report-md` is omitted, the processor writes to `localization_report.md` beside the production output and appends a timestamped section instead of overwriting earlier runs. Use `--report-md` only when a different fixed report path is explicitly desired.
 
@@ -176,6 +201,11 @@ Recommended Markdown shape:
 | button | Keep button labels short. |
 | ja | Use natural Japanese UI wording. |
 | ja.button | Prefer concise Japanese button labels. |
+
+## Figma Layer Key Write Back
+
+- enabled: true
+- layer_name_prefix: i18n:
 ```
 
 Markdown sections:
@@ -185,6 +215,7 @@ Markdown sections:
 - `Glossary`: apply approved term translations by target-language column.
 - `Translation Memory`: reuse approved full-string translations by target-language column.
 - `Style Rules`: add translation instructions by scope, such as `global`, `button`, `ja`, or `ja.button`.
+- `Figma Layer Key Write Back`: persist the first-run decision about preparing a node-to-key manifest for Figma layer renaming. Use `enabled: true` or `enabled: false`, and optionally `layer_name_prefix`.
 
 CSV is also supported with columns:
 
@@ -203,6 +234,8 @@ JSON shape:
 {
   "source_language": "en",
   "target_languages": ["zh-Hans", "ja", "fr"],
+  "figma_layer_key_write_back": "enabled",
+  "layer_name_prefix": "i18n:",
   "do_not_translate": ["API", "PIN", "URL"],
   "glossary": [
     {

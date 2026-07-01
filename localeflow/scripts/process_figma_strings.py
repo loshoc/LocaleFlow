@@ -14,7 +14,7 @@ from difflib import SequenceMatcher
 from pathlib import Path
 from typing import Any
 
-PROCESSOR_VERSION = "0.5.0"
+PROCESSOR_VERSION = "0.6.0"
 
 PLACEHOLDER_RE = re.compile(
     r"(\{\{[^{}]+\}\}|\$\{[^{}]+\}|\{[^{}]+\}|%[@dfs]|[$][A-Za-z_][A-Za-z0-9_]*|"
@@ -366,6 +366,8 @@ def empty_rules() -> dict[str, Any]:
     return {
         "source_language": "auto",
         "target_languages": [],
+        "figma_layer_key_write_back": "ask",
+        "layer_name_prefix": "",
         "do_not_translate": [],
         "glossary": [],
         "translation_memory": [],
@@ -508,6 +510,26 @@ def handle_markdown_rules_table(section: str, rows: list[dict[str, str]], rules:
                         "notes": markdown_row_value(row, "notes"),
                     }
                 )
+        elif section in {"figma_layer_key_write_back", "layer_key_write_back", "figma_write_back"}:
+            setting = markdown_row_value(row, "setting", "name", "key", "source")
+            value = markdown_row_value(row, "value", "enabled", "translation", "notes")
+            apply_write_back_setting(rules, setting, value)
+
+
+def apply_write_back_setting(rules: dict[str, Any], setting: str, value: str = "") -> None:
+    setting = markdown_plain_text(setting).casefold().replace("-", "_").replace(" ", "_")
+    value = markdown_plain_text(value)
+    if not value and setting in {"yes", "true", "enabled", "enable", "on"}:
+        rules["figma_layer_key_write_back"] = "enabled"
+        return
+    if not value and setting in {"no", "false", "disabled", "disable", "off"}:
+        rules["figma_layer_key_write_back"] = "disabled"
+        return
+    if setting in {"enabled", "enable", "write_back", "figma_layer_key_write_back", "layer_key_write_back"}:
+        rules["figma_layer_key_write_back"] = "enabled" if value.casefold() in {"yes", "true", "enabled", "enable", "on"} else "disabled"
+        return
+    if setting in {"prefix", "layer_name_prefix", "key_prefix"}:
+        rules["layer_name_prefix"] = value
 
 
 def load_markdown_rules(path: Path, rules: dict[str, Any]) -> dict[str, Any]:
@@ -537,6 +559,12 @@ def load_markdown_rules(path: Path, rules: dict[str, Any]) -> dict[str, Any]:
                     rules["style_rules"].setdefault(scope.strip() or "global", []).append(rule.strip())
                 else:
                     rules["style_rules"].setdefault("global", []).append(item)
+            elif section in {"figma_layer_key_write_back", "layer_key_write_back", "figma_write_back"} and item:
+                if ":" in item:
+                    setting, value = item.split(":", 1)
+                    apply_write_back_setting(rules, setting, value)
+                else:
+                    apply_write_back_setting(rules, item)
         index += 1
     rules["rule_conflicts"] = detect_rule_conflicts(rules)
     return rules
@@ -604,8 +632,15 @@ def load_rules(path: Path | None) -> dict[str, Any]:
     rules.setdefault("translation_memory", [])
     rules.setdefault("placeholder_patterns", [])
     rules.setdefault("style_rules", {})
+    rules.setdefault("figma_layer_key_write_back", "ask")
+    rules.setdefault("layer_name_prefix", "")
     rules["rule_conflicts"] = detect_rule_conflicts(rules)
     return rules
+
+
+def write_back_enabled(rules: dict[str, Any]) -> bool:
+    value = str(rules.get("figma_layer_key_write_back") or "").strip().casefold()
+    return value in {"enabled", "enable", "true", "yes", "on"}
 
 
 def load_translations(path: Path | None) -> dict[tuple[str, str, str], str]:
@@ -939,6 +974,21 @@ def key_semantic(record: dict[str, Any], source: str, semantic_hint: str = "", c
     return source_segment
 
 
+def record_layer_key(record: dict[str, Any], existing_by_key: dict[str, str]) -> str:
+    """Return a localization key already stored in the Figma text layer name."""
+    node_name = str(record.get("node_name") or record.get("name") or "").strip()
+    if not node_name:
+        return ""
+    candidates = [node_name]
+    for prefix in ("i18n:", "i18n.", "lf:", "lf."):
+        if node_name.startswith(prefix):
+            candidates.append(node_name[len(prefix) :].strip())
+    for candidate in candidates:
+        if candidate in existing_by_key:
+            return candidate
+    return ""
+
+
 def base_key(record: dict[str, Any], source: str, prefix: str = "", semantic_hint: str = "", context_hint: str = "") -> str:
     role = record.get("ui_role") or "text"
     context = key_context(record, source, context_hint)
@@ -1156,7 +1206,8 @@ def build_entries(
             if nearby:
                 frame_hint = sorted(nearby, key=lambda item: item[0])[0][1]
         semantic_hint = key_hint_for(translations, "", source, original_source, number_replacements)
-        key = existing_by_source.get(source) or base_key(record, source, key_prefix, semantic_hint, frame_hint)
+        layer_key = record_layer_key(record, existing_by_key)
+        key = layer_key or existing_by_source.get(source) or base_key(record, source, key_prefix, semantic_hint, frame_hint)
         if key in used_keys and used_keys[key] != source:
             context_suffix = slug_segment(str(record.get("frame") or record.get("page") or "context"), "context")
             key = f"{key}.{context_suffix}"
@@ -1878,6 +1929,74 @@ def write_context_map(path: Path, context_map: dict[str, Any]) -> None:
     path.write_text(json.dumps(context_map, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
+def build_layer_key_manifest(
+    records: list[dict[str, Any]],
+    entries: list[dict[str, Any]],
+    dedupe_mode: str,
+    run_id: str = "",
+    layer_name_prefix: str = "",
+) -> dict[str, Any]:
+    entry_by_identity: dict[str, dict[str, Any]] = {}
+    entry_by_source: dict[str, dict[str, Any]] = {}
+    for entry in entries:
+        source = normalize_source(str(entry.get("source") or ""))
+        entry_by_source[source] = entry
+        synthetic_record = {
+            "frame": entry.get("frame", ""),
+            "page": entry.get("page", ""),
+            "ui_role": entry.get("ui_role", "text"),
+        }
+        entry_by_identity[dedupe_identity(synthetic_record, source, dedupe_mode)] = entry
+
+    layers: list[dict[str, Any]] = []
+    seen_node_ids: set[str] = set()
+    for record in sorted(records, key=visual_sort_key):
+        node_id = str(record.get("node_id") or record.get("id") or "")
+        if not node_id or node_id in seen_node_ids:
+            continue
+        seen_node_ids.add(node_id)
+        normalized = localizable_dynamic_time_label(normalize_source(record_text(record)))
+        source, _ = number_placeholders_for_source(normalized)
+        if not source:
+            continue
+        entry = entry_by_identity.get(dedupe_identity(record, source, dedupe_mode)) or entry_by_source.get(source)
+        if not entry:
+            continue
+        key = str(entry.get("key") or "")
+        if not key:
+            continue
+        layers.append(
+            {
+                "node_id": node_id,
+                "key": key,
+                "source": entry.get("source", ""),
+                "rename_to": f"{layer_name_prefix}{key}",
+                "current_name": record.get("node_name") or record.get("name") or "",
+                "page": record.get("page") or "",
+                "frame": record.get("frame") or "",
+                "figma_path": record.get("figma_path") or "",
+                "status": entry.get("status", ""),
+                "non_translatable": bool(entry.get("non_translatable")),
+                "non_production": bool(entry.get("non_production")),
+            }
+        )
+    return {
+        "metadata": {
+            "export_run_id": run_id,
+            "processor_version": PROCESSOR_VERSION,
+            "dedupe_mode": dedupe_mode,
+            "layer_name_prefix": layer_name_prefix,
+            "layer_count": len(layers),
+        },
+        "layers": layers,
+    }
+
+
+def write_layer_key_manifest(path: Path, manifest: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+
 def load_context_map(path: Path | None) -> dict[str, Any]:
     if not path:
         return {}
@@ -2088,6 +2207,8 @@ def main() -> int:
     parser.add_argument("--report-md", type=Path, help="Optional Markdown report output")
     parser.add_argument("--context-map", type=Path, help="Optional machine-readable context map JSON output")
     parser.add_argument("--previous-context-map", type=Path, help="Previous context_map.json for repeated-export changelog diffs")
+    parser.add_argument("--layer-key-manifest", type=Path, help="Optional node_id-to-key JSON manifest for renaming Figma text layers")
+    parser.add_argument("--layer-name-prefix", default="", help="Optional prefix to add when writing generated keys back to Figma layer names")
     parser.add_argument("--changelog-json", type=Path, help="Optional standalone machine-readable changelog JSON output")
     parser.add_argument("--changelog-md", type=Path, help="Optional standalone changelog Markdown output")
     parser.add_argument("--figma-file", default="", help="Figma file name for report metadata")
@@ -2195,6 +2316,7 @@ def main() -> int:
     report_json = args.report_json
     report_md = args.report_md or args.output.parent / "localization_report.md"
     context_map_path = args.context_map
+    layer_key_manifest_path = args.layer_key_manifest
     changelog_json_path = args.changelog_json
     changelog_md_path = args.changelog_md
     changelog = build_changelog(entries, report, production_rows, previous_context, existing_rows, source_language)
@@ -2210,6 +2332,18 @@ def main() -> int:
             previous_context,
         )
         write_context_map(context_map_path, context_map)
+    if not layer_key_manifest_path and write_back_enabled(rules):
+        layer_key_manifest_path = args.output.parent / "layer-key-manifest.json"
+    layer_name_prefix = args.layer_name_prefix or str(rules.get("layer_name_prefix") or "")
+    if layer_key_manifest_path:
+        layer_manifest = build_layer_key_manifest(
+            records,
+            entries,
+            args.dedupe_mode,
+            report["report_summary"].get("export_run_id", ""),
+            layer_name_prefix,
+        )
+        write_layer_key_manifest(layer_key_manifest_path, layer_manifest)
     if changelog_json_path:
         write_changelog_json(changelog_json_path, changelog)
     if changelog_md_path:
@@ -2224,6 +2358,7 @@ def main() -> int:
                 "report_json": str(report_json) if report_json else "",
                 "report_md": str(report_md),
                 "context_map": str(context_map_path) if context_map_path else "",
+                "layer_key_manifest": str(layer_key_manifest_path) if layer_key_manifest_path else "",
                 "changelog_json": str(changelog_json_path) if changelog_json_path else "",
                 "changelog_md": str(changelog_md_path) if changelog_md_path else "",
                 "counts": {
